@@ -96,11 +96,11 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
     # ---- HEADER (immer Navy-Dunkel wie die Website) -------------------
 
     def _build_header(self):
+        # Header-Hintergrund: Navy im Dark Mode, Weiß im Light Mode
         self.header_frame = ctk.CTkFrame(
-            self, fg_color=NAVY_DARK, corner_radius=0, height=86
+            self, fg_color=(LIGHT_CARD, NAVY_DARK), corner_radius=0, height=86
         )
         self.header_frame.grid(row=0, column=0, sticky="ew")
-        # Spalte 0 = Logo (feste Breite), Spalte 1 = Titel (wächst), Spalte 2 = Buttons
         self.header_frame.grid_columnconfigure(0, minsize=200)
         self.header_frame.grid_columnconfigure(1, weight=1)
         self.header_frame.grid_columnconfigure(2, minsize=220)
@@ -111,7 +111,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         if os.path.isfile(logo_path):
             pil_orig = Image.open(logo_path).convert("RGBA")
 
-            # Fuer dunklen Header: Pixel invertieren (schwarz -> weiss)
+            # Invertierte Version (weiß) für dunklen Header
             r, g, b, a = pil_orig.split()
             pil_inv = Image.merge("RGBA", (
                 r.point(lambda x: 255 - x),
@@ -120,45 +120,44 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
                 a,
             ))
 
-            # Anzeigegroesse berechnen – Seitenverhaeltnis behalten
-            # NICHT vorher skalieren: CTkImage nutzt das Originalbild -> scharfe Darstellung
+            # Anzeigegroesse – Seitenverhaeltnis behalten, Originalbild ungescalt übergeben
             max_w, max_h = 200, 52
-            orig_w, orig_h = pil_inv.size
+            orig_w, orig_h = pil_orig.size
             scale = min(max_w / orig_w, max_h / orig_h)
             dw = int(orig_w * scale)
             dh = int(orig_h * scale)
 
-            # Originalbild (3400px breit) direkt an CTkImage uebergeben
-            # size=(dw,dh) bestimmt nur die Darstellungsgroesse
+            # light_image = original (dunkel, für hellen Header)
+            # dark_image  = invertiert (weiß, für dunklen Header)
             self._logo_img = ctk.CTkImage(
-                light_image=pil_inv,
+                light_image=pil_orig,
                 dark_image=pil_inv,
                 size=(dw, dh),
             )
             logo_widget = ctk.CTkLabel(
-                self.header_frame, image=self._logo_img, text="", bg_color=NAVY_DARK
+                self.header_frame, image=self._logo_img, text="",
+                bg_color=(LIGHT_CARD, NAVY_DARK),
             )
         else:
             logo_widget = ctk.CTkLabel(
                 self.header_frame,
                 text=COMPANY_NAME,
                 font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
-                text_color=WHITE,
-                bg_color=NAVY_DARK,
+                text_color=(NAVY_DARK, WHITE),
+                bg_color=(LIGHT_CARD, NAVY_DARK),
             )
         logo_widget.grid(row=0, column=0, padx=(20, 10), pady=15, sticky="w")
 
         # ── App-Titel ─────────────────────────────────────────────────
-        # Titel + Untertitel in einer Spalte
-        title_frame = ctk.CTkFrame(self.header_frame, fg_color=NAVY_DARK)
+        title_frame = ctk.CTkFrame(self.header_frame, fg_color=(LIGHT_CARD, NAVY_DARK))
         title_frame.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=12)
 
         ctk.CTkLabel(
             title_frame,
             text=APP_NAME,
             font=ctk.CTkFont(family=FONT_FAMILY, size=18, weight="bold"),
-            text_color=WHITE,
-            bg_color=NAVY_DARK,
+            text_color=(NAVY_DARK, WHITE),
+            bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
         ).grid(row=0, column=0, sticky="w")
 
@@ -166,13 +165,13 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             title_frame,
             text="Texterkennung aus PDF-, Bild- und Office-Dateien",
             font=ctk.CTkFont(family=FONT_FAMILY, size=11),
-            text_color="#6b8caa",
-            bg_color=NAVY_DARK,
+            text_color=(TEXT_MUTED, "#6b8caa"),
+            bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
         ).grid(row=1, column=0, sticky="w")
 
-        # Buttons rechts
-        btn_frame = ctk.CTkFrame(self.header_frame, fg_color=NAVY_DARK)
+        # ── Buttons rechts ────────────────────────────────────────────
+        btn_frame = ctk.CTkFrame(self.header_frame, fg_color=(LIGHT_CARD, NAVY_DARK))
         btn_frame.grid(row=0, column=2, padx=(0, 20), pady=12, sticky="e")
 
         self.btn_theme = ctk.CTkButton(
@@ -182,9 +181,9 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             font=ctk.CTkFont(family=FONT_FAMILY, size=12),
             fg_color="transparent",
             border_width=1,
-            border_color="#4a6a8a",
-            text_color=WHITE,
-            hover_color=NAVY_MED,
+            border_color=("#c2cede", "#4a6a8a"),
+            text_color=(NAVY_DARK, WHITE),
+            hover_color=(LIGHT_BG, NAVY_MED),
             command=self._toggle_theme,
         )
         self.btn_theme.grid(row=0, column=0, padx=(0, 8))
@@ -196,9 +195,9 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             font=ctk.CTkFont(family=FONT_FAMILY, size=12),
             fg_color="transparent",
             border_width=1,
-            border_color="#4a6a8a",
-            text_color=WHITE,
-            hover_color=NAVY_MED,
+            border_color=("#c2cede", "#4a6a8a"),
+            text_color=(NAVY_DARK, WHITE),
+            hover_color=(LIGHT_BG, NAVY_MED),
             command=self._show_info,
         ).grid(row=0, column=1)
 
