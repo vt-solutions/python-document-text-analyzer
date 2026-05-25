@@ -284,7 +284,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             fg_color=(LIGHT_CARD, DARK_CARD),
             corner_radius=10,
             border_width=2,
-            border_color=("#dce3ec", "#1e3a5a"),
+            border_color=("#c2cede", "#3a6a9a"),
             height=48,
         )
         self.drop_zone.grid(row=1, column=0, padx=24, pady=(0, 8), sticky="ew")
@@ -307,7 +307,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             wrap="word",
             fg_color=(LIGHT_CARD, DARK_CARD),
             border_width=2,
-            border_color=("#dce3ec", "#1e3a5a"),
+            border_color=("#c2cede", "#3a6a9a"),
             corner_radius=10,
             scrollbar_button_color=(BLUE_ACCENT, BLUE_ACCENT),
         )
