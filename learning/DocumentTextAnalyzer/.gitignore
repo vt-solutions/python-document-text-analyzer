@@ -1,6 +1,26 @@
-.venv/
+﻿# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+
+# Projektordner
+input/*
 output/*
+!input/.gitkeep
 !output/.gitkeep
