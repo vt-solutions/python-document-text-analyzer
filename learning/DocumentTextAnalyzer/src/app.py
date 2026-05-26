@@ -6,6 +6,7 @@ Navy-Blue Header, Segoe UI Schrift, cleanes professionelles Layout.
 
 import os
 import threading
+import tkinter as tk
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from tkinterdnd2 import TkinterDnD, DND_FILES
@@ -13,6 +14,7 @@ from PIL import Image
 
 from src.file_router import route_file
 from src.ui.info_dialog import InfoDialog
+from src.settings_manager import load as load_settings, save as save_settings
 from src.version import (
     APP_NAME, APP_VERSION,
     COMPANY_NAME, COMPANY_EMAIL, COMPANY_WEBSITE,
@@ -34,7 +36,13 @@ TEXT_MUTED   = "#6b7c93"   # Grauer Hinweistext
 
 FONT_FAMILY  = "Segoe UI"  # Naechste Alternative zur Website-Schrift
 
-ctk.set_appearance_mode("Dark")
+# Theme-Bezeichnungen für den Segmented-Button
+THEME_LIGHT = "☀  Hellmodus"
+THEME_DARK  = "🌙  Dunkelmodus"
+
+# Gespeichertes Theme laden (Fallback: Dark)
+_saved = load_settings()
+ctk.set_appearance_mode(_saved.get("theme", "Dark"))
 ctk.set_default_color_theme("blue")
 
 SUPPORTED_EXTENSIONS = {
@@ -49,19 +57,23 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_NAME)
-        # Fenster zentriert starten (+30% groesser)
+        self.minsize(920, 680)
+        # Startgröße zentriert auf dem Bildschirm
         self.update_idletasks()
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        w, h = 1430, 1010
+        w, h = 1800, 1050
+        sw   = self.winfo_screenwidth()
+        sh   = self.winfo_screenheight()
+        # Falls Bildschirm kleiner als gewünschte Größe → anpassen
+        w = min(w, sw - 40)
+        h = min(h, sh - 80)
         x = (sw - w) // 2
         y = (sh - h) // 2
         self.geometry(f"{w}x{h}+{x}+{y}")
-        self.minsize(1000, 720)
         self.configure(bg=DARK_BG)
 
         self._selected_file = ""
-        self._is_dark = True
+        self._is_dark = (_saved.get("theme", "Dark") == "Dark")
+        self.configure(bg=DARK_BG if self._is_dark else LIGHT_BG)
 
         self._set_window_icon()
         self._build_ui()
@@ -72,12 +84,75 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
     # ------------------------------------------------------------------ #
 
     def _set_window_icon(self):
-        icon_path = os.path.join(os.path.dirname(__file__), "..", ICON_PATH)
-        if os.path.isfile(icon_path):
-            try:
-                self.iconbitmap(icon_path)
-            except Exception:
-                pass
+        """
+        Setzt das VT-Icon für Titelleiste, Taskleiste und ALT+TAB.
+
+        Zwei Methoden kombiniert:
+          1. iconbitmap()   – Tkinter, Titelleiste
+          2. WM_SETICON     – Windows-API, Taskleiste + ALT+TAB
+
+        Pfad:
+          EXE  → sys._MEIPASS/assets/app.ico
+          Skript → <projektroot>/assets/app.ico
+        """
+        import sys
+        base = (sys._MEIPASS
+                if hasattr(sys, "_MEIPASS")
+                else os.path.normpath(
+                    os.path.join(os.path.abspath(os.path.dirname(__file__)), "..")
+                ))
+        ico_path = os.path.abspath(os.path.join(base, ICON_PATH))
+
+        if not os.path.isfile(ico_path):
+            return  # ICO-Datei nicht gefunden → Standard-Icon bleibt
+
+        # ── Methode 1: Tkinter (Titelleiste) ─────────────────────────
+        try:
+            self.iconbitmap(ico_path)
+        except Exception:
+            pass
+
+        # ── Methode 2: Windows-API (Taskleiste + ALT+TAB) ────────────
+        # after() stellt sicher, dass der HWND bereits existiert
+        self.after(150, lambda p=ico_path: self._apply_taskbar_icon(p))
+
+    def _apply_taskbar_icon(self, ico_path: str):
+        """
+        Setzt das Icon direkt über WM_SETICON auf den Windows-HWND.
+        Funktioniert auch wenn die App als python.exe-Prozess läuft.
+        """
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+
+            IMAGE_ICON      = 1
+            LR_LOADFROMFILE = 0x0010
+            LR_DEFAULTSIZE  = 0x0040
+            WM_SETICON      = 0x0080
+            ICON_SMALL      = 0
+            ICON_BIG        = 1
+            GA_ROOT         = 2   # GetAncestor: Root-Fenster holen
+
+            # Großes (256 px) und kleines (16 px) Icon laden
+            h_big   = user32.LoadImageW(
+                None, ico_path, IMAGE_ICON, 0, 0,
+                LR_LOADFROMFILE | LR_DEFAULTSIZE
+            )
+            h_small = user32.LoadImageW(
+                None, ico_path, IMAGE_ICON, 16, 16,
+                LR_LOADFROMFILE
+            )
+
+            # HWND des echten Top-Level-Fensters ermitteln
+            hwnd = user32.GetAncestor(self.winfo_id(), GA_ROOT)
+            if not hwnd:
+                hwnd = user32.GetParent(self.winfo_id()) or self.winfo_id()
+
+            if hwnd:
+                if h_big:   user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG,   h_big)
+                if h_small: user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, h_small)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ #
     #  UI aufbauen                                                        #
@@ -101,13 +176,21 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             self, fg_color=(LIGHT_CARD, NAVY_DARK), corner_radius=0, height=86
         )
         self.header_frame.grid(row=0, column=0, sticky="ew")
-        self.header_frame.grid_columnconfigure(0, minsize=200)
-        self.header_frame.grid_columnconfigure(1, weight=1)
-        self.header_frame.grid_columnconfigure(2, minsize=220)
+        # Spalte 0 = Logo (feste Mindestbreite)
+        # Spalte 1 = Titel (wächst, nimmt ganzen übrigen Platz)
+        # Spalte 2 = Buttons (auto-Breite nach Inhalt – kein festes minsize,
+        #            damit breiterer SegmentedButton nicht in Titel-Spalte einbricht)
+        self.header_frame.grid_columnconfigure(0, weight=0, minsize=220)
+        self.header_frame.grid_columnconfigure(1, weight=1, minsize=200)
+        self.header_frame.grid_columnconfigure(2, weight=0)
         self.header_frame.grid_propagate(False)
 
         # ── Logo ──────────────────────────────────────────────────────
-        logo_path = os.path.join(os.path.dirname(__file__), "..", LOGO_PATH)
+        import sys
+        _base     = (sys._MEIPASS
+                     if hasattr(sys, "_MEIPASS")
+                     else os.path.normpath(os.path.join(os.path.dirname(__file__), "..")))
+        logo_path = os.path.join(_base, LOGO_PATH)
         if os.path.isfile(logo_path):
             pil_orig = Image.open(logo_path).convert("RGBA")
 
@@ -149,8 +232,10 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         logo_widget.grid(row=0, column=0, padx=(20, 10), pady=15, sticky="w")
 
         # ── App-Titel ─────────────────────────────────────────────────
+        # sticky="ew" + grid_columnconfigure weight=1 → Frame füllt Spalte 1 vollständig
         title_frame = ctk.CTkFrame(self.header_frame, fg_color=(LIGHT_CARD, NAVY_DARK))
-        title_frame.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=12)
+        title_frame.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=12)
+        title_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             title_frame,
@@ -159,7 +244,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text_color=(NAVY_DARK, WHITE),
             bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
-        ).grid(row=0, column=0, sticky="w")
+        ).grid(row=0, column=0, sticky="w", padx=(0, 4))
 
         ctk.CTkLabel(
             title_frame,
@@ -168,25 +253,34 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text_color=(TEXT_MUTED, "#6b8caa"),
             bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
-        ).grid(row=1, column=0, sticky="w")
+        ).grid(row=1, column=0, sticky="w", padx=(0, 4))
 
         # ── Buttons rechts ────────────────────────────────────────────
         btn_frame = ctk.CTkFrame(self.header_frame, fg_color=(LIGHT_CARD, NAVY_DARK))
         btn_frame.grid(row=0, column=2, padx=(0, 20), pady=12, sticky="e")
 
-        self.btn_theme = ctk.CTkButton(
+        # ── Theme-Umschalter als Segmented Button ────────────────────
+        self.seg_theme = ctk.CTkSegmentedButton(
             btn_frame,
-            text="☀  Hell",
-            width=105, height=32,
+            values=[THEME_LIGHT, THEME_DARK],
+            command=self._on_theme_change,
+            height=32,
             font=ctk.CTkFont(family=FONT_FAMILY, size=12),
-            fg_color="transparent",
-            border_width=1,
-            border_color=("#c2cede", "#4a6a8a"),
-            text_color=(NAVY_DARK, WHITE),
-            hover_color=(LIGHT_BG, NAVY_MED),
-            command=self._toggle_theme,
+            # Text immer Weiß – funktioniert auf allen Hintergründen
+            text_color=WHITE,
+            text_color_disabled="#7a9ab8",
+            # Aktiver State: kräftige Farbe, klar erkennbar
+            selected_color=(NAVY_DARK, BLUE_ACCENT),     # Hell: Navy | Dunkel: Blau
+            selected_hover_color=(NAVY_MED, "#1a4fa8"),
+            # Inaktiver State: mittleres Blau-Grau, Weißtext hat ~6:1 Kontrast
+            unselected_color=("#4a6a8a", "#1a3550"),     # Hell: mittelblau | Dunkel: dunkelnavy
+            unselected_hover_color=("#3a5a7a", NAVY_MED),
+            # Container-Hintergrund
+            fg_color=("#3a5a7a", NAVY_MED),
+            corner_radius=8,
         )
-        self.btn_theme.grid(row=0, column=0, padx=(0, 8))
+        self.seg_theme.set(THEME_DARK if self._is_dark else THEME_LIGHT)
+        self.seg_theme.grid(row=0, column=0, padx=(0, 8))
 
         ctk.CTkButton(
             btn_frame,
@@ -277,27 +371,35 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self.lbl_status.grid(row=0, column=2, sticky="w")
 
     def _build_drop_zone(self):
-        """Drag & Drop Zone – nur Dateiname-Anzeige, kein Button mehr."""
+        """Drag & Drop Zone – Rahmen auf allen 4 Seiten vollständig sichtbar.
+
+        Ursache fehlender oberer Border:
+          grid_propagate(False) + height=48 zwang den CTkFrame-Canvas in eine
+          zu enge Box – der obere Rand wurde außerhalb gezeichnet.
+        Fix: keine feste Höhe, kein grid_propagate(False).
+          Das Label-pady innen bestimmt die Gesamthöhe des Feldes.
+        """
         self.drop_zone = ctk.CTkFrame(
             self.content_frame,
             fg_color=(LIGHT_CARD, DARK_CARD),
             corner_radius=10,
             border_width=2,
             border_color=("#c2cede", "#3a6a9a"),
-            height=48,
+            # KEIN height= und KEIN grid_propagate(False) –
+            # Frame passt sich dem Inhalt an → alle 4 Border sichtbar
         )
-        self.drop_zone.grid(row=1, column=0, padx=24, pady=(0, 8), sticky="ew")
+        self.drop_zone.grid(row=1, column=0, padx=24, pady=(4, 8), sticky="ew")
         self.drop_zone.grid_columnconfigure(0, weight=1)
-        self.drop_zone.grid_propagate(False)
 
         self.lbl_file = ctk.CTkLabel(
             self.drop_zone,
-            text="📂  Datei hier ablegen  oder  Schaltfläche nutzen",
+            text="📂  Datei hier ablegen  –  oder Schaltfläche nutzen",
             anchor="w",
             text_color=(TEXT_MUTED, "#6b8caa"),
             font=ctk.CTkFont(family=FONT_FAMILY, size=12),
         )
-        self.lbl_file.grid(row=0, column=0, padx=16, sticky="ew")
+        # pady=13 → kontrolliert die Höhe des Feldes (entspricht ~48 px gesamt)
+        self.lbl_file.grid(row=0, column=0, padx=16, pady=13, sticky="ew")
 
     def _build_textbox(self):
         self.textbox = ctk.CTkTextbox(
@@ -314,6 +416,92 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self.textbox.insert("0.0", "Hier erscheint der erkannte Text …")
         self.textbox.configure(state="disabled")
 
+        # Rechtsklick-Menü + Tastenkürzel einrichten
+        self._setup_textbox_extras()
+
+    def _setup_textbox_extras(self):
+        """Rechtsklick-Kontextmenü und Tastenkürzel für den Texteditor."""
+        dark = self._is_dark
+
+        # ── Kontextmenü (systemnahes tk.Menu mit Corporate-Farben) ───
+        self._ctx_menu = tk.Menu(
+            self, tearoff=0,
+            font=(FONT_FAMILY, 11),
+            bg="#132030"    if dark else "#ffffff",
+            fg="#e8eaf0"    if dark else NAVY_DARK,
+            activebackground=BLUE_ACCENT,
+            activeforeground="#ffffff",
+            relief="flat", bd=1,
+        )
+        self._ctx_menu.add_command(
+            label="📋  Kopieren",
+            command=self._copy_selected_text,
+            accelerator="Strg+C",
+        )
+        self._ctx_menu.add_command(
+            label="☑  Alles markieren",
+            command=self._select_all_text,
+            accelerator="Strg+A",
+        )
+        self._ctx_menu.add_separator()
+        self._ctx_menu.add_command(
+            label="📄  Alles kopieren",
+            command=self._copy_text,
+        )
+
+        # Binding auf CTkTextbox-Wrapper UND internen tk.Text Widget
+        _inner = getattr(self.textbox, "_textbox", None)
+        for w in filter(None, [self.textbox, _inner]):
+            w.bind("<Button-3>", self._show_ctx_menu)
+            w.bind("<Control-a>", lambda e: (self._select_all_text(), "break")[1])
+            w.bind("<Control-A>", lambda e: (self._select_all_text(), "break")[1])
+
+    def _show_ctx_menu(self, event):
+        """Zeigt das Rechtsklick-Menü an der Mausposition."""
+        try:
+            sel = self.textbox.get("sel.first", "sel.last")
+            has_sel = bool(sel.strip())
+        except Exception:
+            has_sel = False
+
+        # "Kopieren" nur aktiv wenn etwas markiert ist
+        self._ctx_menu.entryconfig(0, state="normal" if has_sel else "disabled")
+
+        try:
+            self._ctx_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._ctx_menu.grab_release()
+        return "break"
+
+    def _select_all_text(self):
+        """Markiert den gesamten Text im Textfeld (Strg+A)."""
+        _inner = getattr(self.textbox, "_textbox", self.textbox)
+        self.textbox.configure(state="normal")
+        _inner.tag_add("sel", "1.0", "end-1c")
+        self.textbox.configure(state="disabled")
+        self.textbox.focus_set()
+
+    def _copy_selected_text(self):
+        """Kopiert nur den aktuell markierten Text."""
+        try:
+            text = self.textbox.get("sel.first", "sel.last")
+            if text.strip():
+                self.clipboard_clear()
+                self.clipboard_append(text)
+                self._set_status(f"Markierung kopiert  ({len(text)} Zeichen) ✓")
+            else:
+                messagebox.showinfo(
+                    "Kein Text markiert",
+                    "Bitte zuerst Text im Editor markieren\n"
+                    "(Maus ziehen oder Strg+A für alles).",
+                )
+        except Exception:
+            messagebox.showinfo(
+                "Kein Text markiert",
+                "Bitte zuerst Text im Editor markieren\n"
+                "(Maus ziehen oder Strg+A für alles).",
+            )
+
     def _build_bottom_buttons(self):
         bar = ctk.CTkFrame(
             self.content_frame,
@@ -322,7 +510,20 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         )
         bar.grid(row=3, column=0, padx=24, pady=(0, 16), sticky="e")
 
-        # 📋 Kopieren – Grün
+        # ✂ Markierten Text kopieren – Blau (NEU)
+        ctk.CTkButton(
+            bar,
+            text="✂  Markierten Text kopieren",
+            width=220, height=36,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            fg_color=BLUE_ACCENT,
+            hover_color=NAVY_MED,
+            text_color=WHITE,
+            corner_radius=8,
+            command=self._copy_selected_text,
+        ).grid(row=0, column=0, padx=(0, 10))
+
+        # 📋 Alles kopieren – Grün
         ctk.CTkButton(
             bar,
             text="📋  Alles kopieren",
@@ -333,7 +534,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text_color=WHITE,
             corner_radius=8,
             command=self._copy_text,
-        ).grid(row=0, column=0, padx=(0, 10))
+        ).grid(row=0, column=1, padx=(0, 10))
 
         # 💾 Speichern – Navy
         ctk.CTkButton(
@@ -345,9 +546,9 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             hover_color=NAVY_MED,
             corner_radius=8,
             command=self._save_text,
-        ).grid(row=0, column=1, padx=(0, 10))
+        ).grid(row=0, column=2, padx=(0, 10))
 
-        # 🗑 Leeren – Rot/Grau
+        # 🗑 Leeren – Rot
         ctk.CTkButton(
             bar,
             text="🗑  Text leeren",
@@ -358,7 +559,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text_color=WHITE,
             corner_radius=8,
             command=self._clear_text,
-        ).grid(row=0, column=2)
+        ).grid(row=0, column=3)
 
     # ---- FOOTER -------------------------------------------------------
 
@@ -419,17 +620,18 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
     #  Theme                                                              #
     # ------------------------------------------------------------------ #
 
-    def _toggle_theme(self):
-        if not self._is_dark:
-            self._is_dark = True
-            ctk.set_appearance_mode("Dark")
-            self.configure(bg=DARK_BG)
-            self.btn_theme.configure(text="☀  Hell")
-        else:
+    def _on_theme_change(self, value: str):
+        """Wird vom CTkSegmentedButton aufgerufen wenn Hellmodus/Dunkelmodus gewählt."""
+        if value == THEME_LIGHT:
             self._is_dark = False
             ctk.set_appearance_mode("Light")
             self.configure(bg=LIGHT_BG)
-            self.btn_theme.configure(text="🌙  Dunkel")
+            save_settings({"theme": "Light"})
+        else:
+            self._is_dark = True
+            ctk.set_appearance_mode("Dark")
+            self.configure(bg=DARK_BG)
+            save_settings({"theme": "Dark"})
 
     def _show_info(self):
         InfoDialog(self)
@@ -506,7 +708,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
 
         self._selected_file = ""
         self.lbl_file.configure(
-            text="Datei hier ablegen  oder  Schaltfläche nutzen",
+            text="📂  Datei hier ablegen  –  oder Schaltfläche nutzen",
             text_color=(TEXT_MUTED, "#6b8caa"),
         )
         self.btn_extract.configure(state="disabled")

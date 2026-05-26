@@ -17,6 +17,16 @@ except Exception:
     except Exception:
         pass
 
+# ── AppUserModelID setzen ─────────────────────────────────────────────
+# Windows gruppiert Taskleisten-Buttons korrekt unter diesem Namen
+# (ohne diese ID erscheint die App unter "python.exe" statt eigenem Icon).
+try:
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        "vt-solutions.VT-Document-Text-Converter.1.0"
+    )
+except Exception:
+    pass
+
 # Sicherstellen, dass das Projektverzeichnis im Suchpfad liegt
 sys.path.insert(0, os.path.dirname(__file__))
 
