@@ -1,0 +1,57 @@
+{
+  "brand": {
+    "company": "vt-solutions GmbH",
+    "claim": "it development & consulting",
+    "support_email": "support@vt-solutions.de",
+    "website": "www.vt-solutions.de"
+  },
+  "colors": {
+    "app_background": "#07111D",
+    "header_background": "#0B223A",
+    "footer_background": "#0B223A",
+    "panel_background": "#102236",
+    "panel_background_alt": "#0E1C2D",
+    "border": "#3E82BD",
+    "border_hover": "#5CA4E0",
+    "primary": "#2B66D9",
+    "primary_hover": "#3478F6",
+    "success": "#1F8A4C",
+    "success_hover": "#28A85E",
+    "secondary": "#0B223A",
+    "secondary_hover": "#143759",
+    "danger": "#C91D1D",
+    "danger_hover": "#E02A2A",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#8CB7E3",
+    "text_muted": "#6F9AC6",
+    "disabled": "#3A4654"
+  },
+  "typography": {
+    "font_family": "Segoe UI",
+    "title_size": 28,
+    "subtitle_size": 14,
+    "body_size": 13,
+    "button_size": 13,
+    "footer_size": 10
+  },
+  "spacing": {
+    "window_padding": 28,
+    "section_gap": 16,
+    "panel_padding": 18,
+    "button_padding_x": 22,
+    "button_padding_y": 10
+  },
+  "radius": {
+    "button": 10,
+    "panel": 14,
+    "window": 0
+  },
+  "layout": {
+    "min_window_width": 1280,
+    "min_window_height": 720,
+    "default_window_width": 1440,
+    "default_window_height": 900,
+    "header_height": 155,
+    "footer_height": 62
+  }
+}

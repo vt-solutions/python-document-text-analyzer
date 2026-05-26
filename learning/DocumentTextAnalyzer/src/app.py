@@ -1,4 +1,4 @@
-﻿"""
+"""
 app.py
 DocumentTextAnalyzer - Design nach vt-solutions GmbH Website.
 Navy-Blue Header, Segoe UI Schrift, cleanes professionelles Layout.
@@ -15,6 +15,7 @@ from PIL import Image
 from src.file_router import route_file
 from src.ui.info_dialog import InfoDialog
 from src.settings_manager import load as load_settings, save as save_settings
+import src.licensing.license_manager as lm
 from src.version import (
     APP_NAME, APP_VERSION,
     COMPANY_NAME, COMPANY_EMAIL, COMPANY_WEBSITE,
@@ -56,20 +57,23 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
 
     def __init__(self):
         super().__init__()
+
+        # ── Lizenz prüfen BEVOR das Fenster je sichtbar wird ─────────
+        _needs_license = lm.is_first_run() or lm.is_trial_expired()
+        if _needs_license:
+            self.withdraw()   # sofort verstecken – kein Flackern
+
         self.title(APP_NAME)
         self.minsize(920, 680)
+
         # Startgröße zentriert auf dem Bildschirm
-        self.update_idletasks()
-        w, h = 1800, 1050
-        sw   = self.winfo_screenwidth()
-        sh   = self.winfo_screenheight()
-        # Falls Bildschirm kleiner als gewünschte Größe → anpassen
-        w = min(w, sw - 40)
-        h = min(h, sh - 80)
-        x = (sw - w) // 2
-        y = (sh - h) // 2
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        w  = min(1800, sw - 40)
+        h  = min(1050, sh - 80)
+        x  = (sw - w) // 2
+        y  = (sh - h) // 2
         self.geometry(f"{w}x{h}+{x}+{y}")
-        self.configure(bg=DARK_BG)
 
         self._selected_file = ""
         self._is_dark = (_saved.get("theme", "Dark") == "Dark")
@@ -78,6 +82,9 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self._set_window_icon()
         self._build_ui()
         self._setup_drag_and_drop()
+
+        if _needs_license:
+            self.after(60, self._check_license_on_startup)
 
     # ------------------------------------------------------------------ #
     #  Icon                                                               #
@@ -568,16 +575,49 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             self, fg_color=NAVY_DARK, corner_radius=0, height=38
         )
         footer.grid(row=2, column=0, sticky="ew")
-        footer.grid_columnconfigure(0, weight=1)
+        footer.grid_columnconfigure(0, weight=0)   # Lizenz-Status
+        footer.grid_columnconfigure(1, weight=1)   # Abstand
+        footer.grid_columnconfigure(2, weight=0)   # Firmendaten
+        footer.grid_columnconfigure(3, weight=0)   # Lizenz-Button
         footer.grid_propagate(False)
 
+        # ── Lizenzstatus (links) ──────────────────────────────────────
+        status_text  = lm.get_status_text()
+        status_color = "#16a34a" if lm.is_activated() else (
+                       "#e87a2a" if not lm.is_trial_expired() else "#dc2626"
+        )
+        self.lbl_license = ctk.CTkLabel(
+            footer,
+            text=f"🔑  {status_text}",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+            text_color=status_color,
+            bg_color=NAVY_DARK,
+        )
+        self.lbl_license.grid(row=0, column=0, padx=(16, 0), pady=10, sticky="w")
+
+        # ── Firmendaten (mitte-rechts) ────────────────────────────────
         ctk.CTkLabel(
             footer,
             text=f"{COMPANY_NAME}  |  {COMPANY_EMAIL}  |  {COMPANY_WEBSITE}  |  Version {APP_VERSION}",
             font=ctk.CTkFont(family=FONT_FAMILY, size=10),
             text_color="#6b8caa",
             bg_color=NAVY_DARK,
-        ).grid(row=0, column=0, pady=10)
+        ).grid(row=0, column=2, pady=10)
+
+        # ── Lizenz-Button (rechts) ────────────────────────────────────
+        ctk.CTkButton(
+            footer,
+            text="Lizenz",
+            width=70, height=22,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+            fg_color="transparent",
+            border_width=1,
+            border_color="#2a4a6a",
+            text_color="#6b8caa",
+            hover_color=NAVY_MED,
+            corner_radius=4,
+            command=self._show_license_dialog,
+        ).grid(row=0, column=3, padx=(8, 16), pady=10)
 
     # ------------------------------------------------------------------ #
     #  Drag & Drop                                                        #
@@ -635,6 +675,46 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
 
     def _show_info(self):
         InfoDialog(self)
+
+    def _check_license_on_startup(self):
+        """
+        Erster-Start / Trial-abgelaufen: Lizenzdialog anzeigen.
+        App ist bereits erstellt (withdraw), Hauptfenster wird danach
+        eingeblendet (deiconify) oder beendet (destroy).
+        """
+        from src.ui.license_dialog import LicenseDialog
+        dlg = LicenseDialog(self)
+        self.wait_window(dlg)
+
+        if dlg.result is None:
+            # Benutzer hat Dialog mit X geschlossen → App beenden
+            self.destroy()
+            return
+
+        # Lizenz aktiviert oder Trial gestartet → Hauptfenster zeigen
+        self._refresh_license_status()
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+
+    def _show_license_dialog(self):
+        """Lizenz-Dialog öffnen (Aktivierung / Infos)."""
+        from src.ui.license_dialog import LicenseDialog
+        dlg = LicenseDialog(self)
+        self.wait_window(dlg)
+        # Footer-Status nach Dialog aktualisieren
+        self._refresh_license_status()
+
+    def _refresh_license_status(self):
+        """Aktualisiert den Lizenzstatus-Text im Footer."""
+        status_text  = lm.get_status_text()
+        status_color = "#16a34a" if lm.is_activated() else (
+                       "#e87a2a" if not lm.is_trial_expired() else "#dc2626"
+        )
+        self.lbl_license.configure(
+            text=f"🔑  {status_text}",
+            text_color=status_color,
+        )
 
     # ------------------------------------------------------------------ #
     #  Datei laden & Extraktion                                           #
