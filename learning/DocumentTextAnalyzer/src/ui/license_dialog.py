@@ -1,45 +1,39 @@
 """
-license_dialog.py
-Lizenzaktivierungs-Dialog fuer VT Document Text Converter.
-Breites, professionelles 2-Spalten-Layout.
+license_dialog.py  –  VT Document Text Converter
+Lizenzaktivierungs-Dialog, breites 2-Spalten-Layout.
 """
 
 import os
 import sys
 import tkinter as tk
 import customtkinter as ctk
+from datetime import datetime
 from PIL import Image
 
 from src.version import (
     APP_NAME, APP_VERSION,
     COMPANY_NAME, COMPANY_EMAIL, COMPANY_WEBSITE,
-    COPYRIGHT, LOGO_PATH, ICON_PATH,
+    LOGO_PATH, ICON_PATH,
 )
 import src.licensing.license_manager as lm
 
-# ── Farben ────────────────────────────────────────────────────────────
-FONT        = "Segoe UI"
-NAVY_DARK   = "#0d1f35"
-NAVY_MED    = "#102a47"
-BLUE_ACCENT = "#1e5fd4"
-BLUE_HOVER  = "#1a4fa8"
-LIGHT_BG    = "#f0f2f5"
-DARK_BG     = "#0f1c2e"
-CARD_L      = "#ffffff"
-CARD_D      = "#132030"
-SEP_L       = "#dce3ec"
-SEP_D       = "#1e3a5a"
-WHITE       = "#ffffff"
-SUCCESS     = "#16a34a"
-ERROR_RED   = "#dc2626"
-GREEN_CARD_D = "#0a2818"
-GREEN_CARD_L = "#f0faf4"
+from src.theme import (
+    FONT_FAMILY as FONT,
+    FONT_TITLE, FONT_SECTION, FONT_LABEL, FONT_BODY,
+    FONT_INPUT, FONT_BUTTON, FONT_SUBTITLE, FONT_HINT, FONT_FOOTER,
+    HEIGHT_BUTTON, HEIGHT_ENTRY,
+    NAVY_DARK, NAVY_MED, BLUE_ACCENT, BLUE_HOVER, WHITE,
+    LIGHT_BG, LIGHT_CARD as CARD_L, DARK_BG, DARK_CARD as CARD_D,
+    SEP_LIGHT as SEP_L, SEP_DARK as SEP_D, SUCCESS, ERROR_RED,
+)
+
+# Zweite Dunkel-Kartenhintergrundfarbe (nur im Dialog genutzt)
+CARD_D2 = "#0e1a29"
 
 
 class LicenseDialog(tk.Toplevel):
     """
-    Modaler Lizenzaktivierungs-Dialog – breites 2-Spalten-Layout.
-    result: "activated" | "trial" | None (→ App beenden)
+    result: "activated" | "trial" | None  (None → App soll beenden)
     """
 
     def __init__(self, parent):
@@ -47,12 +41,15 @@ class LicenseDialog(tk.Toplevel):
         self.result: str | None = None
         self._is_dark = ctk.get_appearance_mode() == "Dark"
 
-        self.configure(bg=NAVY_DARK)
+        # Fensterkonfiguration
         self.title(f"Lizenzaktivierung  –  {APP_NAME}")
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.resizable(True, True)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Icon
+        bg = DARK_BG if self._is_dark else LIGHT_BG
+        self.configure(bg=bg)
+
+        # App-Icon
         _base = (sys._MEIPASS if hasattr(sys, "_MEIPASS")
                  else os.path.normpath(
                      os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -63,18 +60,20 @@ class LicenseDialog(tk.Toplevel):
             except Exception:
                 pass
 
-        # Fenstergroesse: 1800x1050, an Bildschirm anpassen
+        # Fenstergröße: max 1800×1300, an Bildschirm anpassen
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         dw = min(1800, sw - 40)
         dh = min(1300, sh - 60)
-        x  = max(0, (sw - dw) // 2)
-        y  = max(0, (sh - dh) // 2)
-        self.geometry(f"{dw}x{dh}+{x}+{y}")
-        self.minsize(1400, 900)
+        self.geometry(f"{dw}x{dh}+{max(0,(sw-dw)//2)}+{max(0,(sh-dh)//2)}")
+        self.minsize(min(900, sw - 40), min(660, sh - 60))
 
         self._build_ui()
-        self.after(80, self._make_modal)
+        self.after(100, self._make_modal)
+
+    # ------------------------------------------------------------------ #
+    #  Modal                                                               #
+    # ------------------------------------------------------------------ #
 
     def _make_modal(self):
         try:
@@ -85,36 +84,31 @@ class LicenseDialog(tk.Toplevel):
             pass
 
     # ------------------------------------------------------------------ #
-    #  UI                                                                  #
+    #  UI-Aufbau                                                           #
     # ------------------------------------------------------------------ #
 
     def _build_ui(self):
-        dark = self._is_dark
-
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)   # Content wächst
-
-        # ── Header ───────────────────────────────────────────────────
+        # Hauptstruktur: Header | Content | Footer  (pack, top-to-bottom)
         self._build_header()
-
-        # ── Hauptinhalt (2 Spalten) ───────────────────────────────────
         self._build_content()
-
-        # ── Footer ───────────────────────────────────────────────────
         self._build_footer()
 
-    # ─── HEADER ────────────────────────────────────────────────────────
+    # ── HEADER ─────────────────────────────────────────────────────────
 
     def _build_header(self):
         hdr = tk.Frame(self, bg=NAVY_DARK)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.grid_columnconfigure(1, weight=1)
+        hdr.pack(side="top", fill="x")
+
+        # Inhalt des Headers mit pack (horizontal)
+        inner = tk.Frame(hdr, bg=NAVY_DARK)
+        inner.pack(fill="x", padx=36, pady=(14, 14))
 
         # Logo links
         _base = (sys._MEIPASS if hasattr(sys, "_MEIPASS")
                  else os.path.normpath(
                      os.path.join(os.path.dirname(__file__), "..", "..")))
         logo_path = os.path.join(_base, LOGO_PATH)
+        logo_placed = False
         if os.path.isfile(logo_path):
             try:
                 pil = Image.open(logo_path).convert("RGBA")
@@ -125,78 +119,100 @@ class LicenseDialog(tk.Toplevel):
                     b.point(lambda v: 255 - v), a,
                 ))
                 ow, oh = pil_inv.size
-                sc = min(240 / ow, 64 / oh)
+                sc = min(170 / ow, 46 / oh)
                 self._logo = ctk.CTkImage(
                     light_image=pil_inv, dark_image=pil_inv,
                     size=(int(ow * sc), int(oh * sc)))
-                ctk.CTkLabel(
-                    hdr, image=self._logo, text="", bg_color=NAVY_DARK,
-                ).grid(row=0, column=0, rowspan=2, padx=(48, 32), pady=22)
+                lbl_logo = ctk.CTkLabel(
+                    inner, image=self._logo, text="", bg_color=NAVY_DARK)
+                lbl_logo.pack(side="left", padx=(0, 36))
+                logo_placed = True
             except Exception:
-                tk.Label(hdr, text=COMPANY_NAME, font=(FONT, 13, "bold"),
-                         fg=WHITE, bg=NAVY_DARK).grid(
-                    row=0, column=0, rowspan=2, padx=(48, 32), pady=22)
-        else:
-            tk.Label(hdr, text=COMPANY_NAME, font=(FONT, 13, "bold"),
-                     fg=WHITE, bg=NAVY_DARK).grid(
-                row=0, column=0, rowspan=2, padx=(48, 32), pady=22)
+                pass
 
-        # Begrüßung rechts vom Logo
-        tk.Label(hdr, text=f"Willkommen bei  {APP_NAME}",
-                 font=(FONT, 20, "bold"),
-                 fg=WHITE, bg=NAVY_DARK,
-                 anchor="w").grid(row=0, column=1, sticky="w", pady=(22, 4))
+        if not logo_placed:
+            tk.Label(inner, text=COMPANY_NAME,
+                     font=(FONT, FONT_SECTION, "bold"), fg=WHITE, bg=NAVY_DARK
+                     ).pack(side="left", padx=(0, 36))
 
-        tk.Label(hdr,
+        # Texte rechts vom Logo
+        txt_frame = tk.Frame(inner, bg=NAVY_DARK)
+        txt_frame.pack(side="left", fill="both", expand=True)
+
+        tk.Label(txt_frame,
+                 text=f"Willkommen bei  {APP_NAME}",
+                 font=(FONT, FONT_TITLE, "bold"),
+                 fg=WHITE, bg=NAVY_DARK, anchor="w",
+                 ).pack(anchor="w", pady=(2, 2))
+
+        tk.Label(txt_frame,
                  text="Aktivieren Sie Ihre Lizenz oder starten Sie die kostenlose 30-Tage-Testversion.",
-                 font=(FONT, 12),
-                 fg="#6b8caa", bg=NAVY_DARK,
-                 anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 22))
+                 font=(FONT, FONT_SUBTITLE),
+                 fg="#6b8caa", bg=NAVY_DARK, anchor="w",
+                 ).pack(anchor="w")
 
-        # Trennlinie
-        tk.Frame(self, bg=SEP_D, height=1).grid(row=0, column=0, sticky="sew")
+        # Trennlinie unten am Header
+        tk.Frame(self, bg=SEP_D, height=1).pack(side="top", fill="x")
 
-    # ─── CONTENT ───────────────────────────────────────────────────────
+    # ── CONTENT  (2 Spalten mit pack) ──────────────────────────────────
 
     def _build_content(self):
-        dark   = self._is_dark
-        bg     = DARK_BG if dark else LIGHT_BG
+        dark = self._is_dark
+        bg   = DARK_BG if dark else LIGHT_BG
 
-        outer = ctk.CTkFrame(self, fg_color=(LIGHT_BG, DARK_BG), corner_radius=0)
-        outer.grid(row=1, column=0, sticky="nsew")
-        outer.grid_columnconfigure(0, weight=55)   # Linke Spalte: Formular (55 %)
-        outer.grid_columnconfigure(1, weight=45)   # Rechte Spalte: Trial  (45 %)
-        outer.grid_rowconfigure(0, weight=1)
+        # Container für beide Spalten
+        content = tk.Frame(self, bg=bg)
+        content.pack(side="top", fill="both", expand=True)
 
-        # ── Linke Spalte: Lizenz aktivieren ──────────────────────────
-        left = ctk.CTkFrame(outer, fg_color=(CARD_L, CARD_D), corner_radius=0)
-        left.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        left.grid_columnconfigure(0, weight=1)
+        # ── Linke Spalte ──────────────────────────────────────────────
+        left_bg = CARD_D if dark else CARD_L
+        left = tk.Frame(content, bg=left_bg)
+        left.pack(side="left", fill="both", expand=True)
 
-        # Abstandshalter oben
-        ctk.CTkFrame(left, height=36, fg_color="transparent").grid()
+        # Vertikaler Trenner
+        tk.Frame(content, bg=SEP_D, width=1).pack(side="left", fill="y")
 
-        ctk.CTkLabel(
-            left, text="🔑  Lizenz aktivieren",
-            font=ctk.CTkFont(family=FONT, size=17, weight="bold"),
-            text_color=(NAVY_DARK, WHITE), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 4))
+        # ── Rechte Spalte ─────────────────────────────────────────────
+        right_bg = CARD_D2 if dark else "#f8fafc"
+        right = tk.Frame(content, bg=right_bg)
+        right.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkFrame(left, height=1, fg_color=(SEP_L, SEP_D)).grid(
-            sticky="ew", padx=52, pady=(0, 20))
+        # Inhalte der Spalten befüllen
+        self._fill_left(left, dark)
+        self._fill_right(right, dark)
+
+    # ── LINKE SPALTE: Lizenz aktivieren ────────────────────────────────
+
+    def _fill_left(self, parent, dark):
+        txt   = WHITE if dark else NAVY_DARK
+        muted = "#8aa0bc" if dark else "#334155"
+        hint  = "#4a6a8a" if dark else "#7a8a9a"
+        bg    = CARD_D   if dark else CARD_L
+
+        pad = 36   # Innenabstand links/rechts
+
+        tk.Frame(parent, bg=bg, height=20).pack(fill="x")
+
+        # Abschnittstitel
+        tk.Label(parent, text="🔑  Lizenz aktivieren",
+                 font=(FONT, FONT_SECTION, "bold"),
+                 fg=txt, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad)
+
+        tk.Frame(parent, bg=SEP_D if dark else SEP_L,
+                 height=1).pack(fill="x", padx=pad, pady=(8, 24))
 
         # Firmenname
-        ctk.CTkLabel(
-            left, text="Firmenname",
-            font=ctk.CTkFont(family=FONT, size=13, weight="bold"),
-            text_color=("#334155", "#8aa0bc"), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 6))
+        tk.Label(parent, text="Firmenname",
+                 font=(FONT, FONT_LABEL, "bold"),
+                 fg=muted, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad, pady=(0, 4))
 
         self.ent_customer = ctk.CTkEntry(
-            left,
+            parent,
             placeholder_text="z. B.  Mustermann GmbH",
-            height=46,
-            font=ctk.CTkFont(family=FONT, size=14),
+            height=HEIGHT_ENTRY,
+            font=ctk.CTkFont(family=FONT, size=FONT_INPUT),
             fg_color=(CARD_L, "#0d2035"),
             border_color=(SEP_L, "#2a4a6a"),
             border_width=1,
@@ -204,20 +220,19 @@ class LicenseDialog(tk.Toplevel):
             placeholder_text_color=("#9aaabb", "#4a6a8a"),
             corner_radius=8,
         )
-        self.ent_customer.grid(sticky="ew", padx=52, pady=(0, 22))
+        self.ent_customer.pack(fill="x", padx=pad, pady=(0, 24))
 
         # Lizenzschlüssel
-        ctk.CTkLabel(
-            left, text="Lizenzschlüssel",
-            font=ctk.CTkFont(family=FONT, size=13, weight="bold"),
-            text_color=("#334155", "#8aa0bc"), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 6))
+        tk.Label(parent, text="Lizenzschlüssel",
+                 font=(FONT, FONT_LABEL, "bold"),
+                 fg=muted, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad, pady=(0, 4))
 
         self.ent_key = ctk.CTkEntry(
-            left,
+            parent,
             placeholder_text="VT-YYYY-XXXX-XXXX",
-            height=46,
-            font=ctk.CTkFont(family=FONT, size=14),
+            height=HEIGHT_ENTRY,
+            font=ctk.CTkFont(family=FONT, size=FONT_INPUT),
             fg_color=(CARD_L, "#0d2035"),
             border_color=(SEP_L, "#2a4a6a"),
             border_width=1,
@@ -225,149 +240,192 @@ class LicenseDialog(tk.Toplevel):
             placeholder_text_color=("#9aaabb", "#4a6a8a"),
             corner_radius=8,
         )
-        self.ent_key.grid(sticky="ew", padx=52, pady=(0, 6))
+        self.ent_key.pack(fill="x", padx=pad, pady=(0, 6))
 
-        ctk.CTkLabel(
-            left,
-            text="Format: VT-YYYY-XXXX-XXXX  (Beispiel: VT-2026-ABCD-1234)",
-            font=ctk.CTkFont(family=FONT, size=11),
-            text_color=("#7a8a9a", "#4a6a8a"), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 6))
+        tk.Label(parent,
+                 text="Format: VT-YYYY-XXXX-XXXX  (Beispiel: VT-2026-ABCD-1234)",
+                 font=(FONT, FONT_HINT), fg=hint, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad, pady=(0, 4))
 
         # Statuszeile
-        self.lbl_status = ctk.CTkLabel(
-            left, text="",
-            font=ctk.CTkFont(family=FONT, size=12),
-            text_color=(ERROR_RED, "#ff6b6b"),
-            anchor="w", justify="left",
+        self.lbl_status = tk.Label(
+            parent, text="",
+            font=(FONT, FONT_BODY), fg=ERROR_RED, bg=bg, anchor="w", justify="left",
         )
-        self.lbl_status.grid(sticky="w", padx=52, pady=(0, 6))
+        self.lbl_status.pack(fill="x", padx=pad, pady=(0, 4))
 
         # Aktivieren-Button
         self.btn_activate = ctk.CTkButton(
-            left,
+            parent,
             text="🔑  Lizenz aktivieren",
-            height=50,
-            font=ctk.CTkFont(family=FONT, size=15, weight="bold"),
+            height=HEIGHT_BUTTON,
+            font=ctk.CTkFont(family=FONT, size=FONT_BUTTON, weight="bold"),
             fg_color=BLUE_ACCENT, hover_color=BLUE_HOVER,
             text_color=WHITE, corner_radius=8,
             command=self._on_activate,
         )
-        self.btn_activate.grid(sticky="ew", padx=52, pady=(8, 32))
+        self.btn_activate.pack(fill="x", padx=pad, pady=(8, 16))
 
-        # ── Vertikaler Trenner ────────────────────────────────────────
-        tk.Frame(outer, bg=SEP_D, width=1).grid(
-            row=0, column=0, sticky="nse", padx=0)
+        tk.Frame(parent, bg=bg, height=32).pack(fill="x")
 
-        # ── Rechte Spalte: Testversion ────────────────────────────────
-        right_bg = (GREEN_CARD_L, "#0a1e12") if False else (LIGHT_BG, DARK_BG)
-        right = ctk.CTkFrame(outer, fg_color=(LIGHT_BG, DARK_BG), corner_radius=0)
-        right.grid(row=0, column=1, sticky="nsew")
-        right.grid_columnconfigure(0, weight=1)
+    # ── RECHTE SPALTE: Testversion ──────────────────────────────────────
 
-        ctk.CTkFrame(right, height=24, fg_color="transparent").grid()
+    def _fill_right(self, parent, dark):
+        txt    = WHITE if dark else NAVY_DARK
+        muted  = "#8aa0bc" if dark else "#4a5568"
+        bg     = CARD_D2 if dark else "#f8fafc"
 
-        ctk.CTkLabel(
-            right, text="▶  Testversion starten",
-            font=ctk.CTkFont(family=FONT, size=17, weight="bold"),
-            text_color=(NAVY_DARK, WHITE), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 4))
+        pad = 36
 
-        ctk.CTkFrame(right, height=1, fg_color=(SEP_L, SEP_D)).grid(
-            sticky="ew", padx=52, pady=(0, 20))
+        tk.Frame(parent, bg=bg, height=20).pack(fill="x")
 
-        ctk.CTkLabel(
-            right,
-            text="Noch kein Lizenzschlüssel? Kein Problem.",
-            font=ctk.CTkFont(family=FONT, size=13, weight="bold"),
-            text_color=(NAVY_DARK, "#c8daf0"), anchor="w",
-        ).grid(sticky="w", padx=52, pady=(0, 8))
+        # Abschnittstitel
+        tk.Label(parent, text="▶  Testversion starten",
+                 font=(FONT, FONT_SECTION, "bold"),
+                 fg=txt, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad)
 
-        ctk.CTkLabel(
-            right,
-            text=(
-                "Testen Sie alle Funktionen des\n"
-                "VT Document Text Converters\n"
-                "30 Tage lang vollständig kostenlos.\n\n"
-                "Keine Kreditkarte erforderlich.\n"
-                "Keine versteckten Kosten.\n"
-                "Jederzeit auf PRO upgraden."
-            ),
-            font=ctk.CTkFont(family=FONT, size=12),
-            text_color=("#4a5568", "#8aa0bc"),
-            anchor="w", justify="left",
-        ).grid(sticky="w", padx=52, pady=(0, 20))
+        tk.Frame(parent, bg=SEP_D if dark else SEP_D,
+                 height=1).pack(fill="x", padx=pad, pady=(8, 24))
+
+        tk.Label(parent,
+                 text="Noch kein Lizenzschlüssel? Kein Problem.",
+                 font=(FONT, FONT_LABEL, "bold"),
+                 fg=txt, bg=bg, anchor="w",
+                 ).pack(fill="x", padx=pad, pady=(0, 10))
+
+        tk.Label(parent,
+                 text=(
+                     "Testen Sie alle Funktionen des VT Document Text Converters\n"
+                     "30 Tage lang vollständig kostenlos.\n\n"
+                     "Keine Kreditkarte erforderlich.\n"
+                     "Keine versteckten Kosten.\n"
+                     "Jederzeit auf PRO upgraden."
+                 ),
+                 font=(FONT, FONT_BODY),
+                 fg=muted, bg=bg, anchor="w", justify="left",
+                 ).pack(fill="x", padx=pad, pady=(0, 14))
 
         # Vorteile
-        for check_text in [
-            "✓  Alle Dateiformate  (PDF, Word, Excel, Bilder …)",
-            "✓  OCR-Texterkennung  (Deutsch + Englisch)",
-            "✓  30 Tage – vollständige Funktionen",
-            "✓  100 % lokal – keine Cloud",
+        for line in [
+            "✓   Alle Dateiformate  (PDF, Word, Excel, Bilder …)",
+            "✓   OCR-Texterkennung  (Deutsch + Englisch)",
+            "✓   30 Tage – vollständige Funktionen",
+            "✓   100 % lokal – keine Cloud",
         ]:
-            ctk.CTkLabel(
-                right, text=check_text,
-                font=ctk.CTkFont(family=FONT, size=12),
-                text_color=(SUCCESS, "#4ade80"),
-                anchor="w",
-            ).grid(sticky="w", padx=52, pady=(0, 4))
+            tk.Label(parent, text=line,
+                     font=(FONT, FONT_BODY),
+                     fg="#4ade80", bg=bg, anchor="w",
+                     ).pack(fill="x", padx=pad, pady=(0, 3))
 
-        ctk.CTkFrame(right, height=20, fg_color="transparent").grid()
+        tk.Frame(parent, bg=bg, height=20).pack(fill="x")
+
+        # ── Trial-Status ermitteln ─────────────────────────────────
+        _data         = lm.load()
+        _is_activated = lm.is_activated()
+        _is_expired   = lm.is_trial_expired()
+        _trial_active = (
+            _data.get("edition") == "TRIAL"
+            and not _is_expired
+            and not _is_activated
+        )
+
+        # Status-Box anzeigen wenn nötig
+        if _trial_active or _is_expired:
+            if _trial_active:
+                try:
+                    ends      = datetime.fromisoformat(_data.get("trial_ends", ""))
+                    remaining = max(0, (ends - datetime.now()).days)
+                    ends_str  = ends.strftime("%d.%m.%Y")
+                    msg = (f"Sie nutzen bereits eine Testversion.\n"
+                           f"Noch  {remaining}  Tage verbleibend  (bis {ends_str}).")
+                    box_bg  = "#2a1a00" if dark else "#fff8ed"
+                    box_fg  = "#fbbf24"
+                    box_brd = "#7a5010" if dark else "#f0c060"
+                except Exception:
+                    msg     = "Sie nutzen bereits eine Testversion."
+                    box_bg  = "#2a1a00" if dark else "#fff8ed"
+                    box_fg  = "#fbbf24"
+                    box_brd = "#7a5010" if dark else "#f0c060"
+            else:
+                msg     = "Die Testversion ist abgelaufen.\nBitte aktivieren Sie eine Lizenz."
+                box_bg  = "#2a0a0a" if dark else "#fef2f2"
+                box_fg  = "#f87171"
+                box_brd = "#7a2020" if dark else "#f0a0a0"
+
+            box = tk.Frame(parent, bg=box_bg,
+                           highlightbackground=box_brd,
+                           highlightthickness=1)
+            box.pack(fill="x", padx=pad, pady=(0, 20))
+
+            tk.Label(box, text=msg,
+                     font=(FONT, FONT_BODY),
+                     fg=box_fg, bg=box_bg,
+                     anchor="w", justify="left",
+                     ).pack(anchor="w", padx=16, pady=14)
+
+        # Button-Zustand
+        if _trial_active:
+            btn_text  = "✓  Testversion läuft bereits"
+            btn_state = "disabled"
+        elif _is_expired:
+            btn_text  = "✗  Testversion abgelaufen"
+            btn_state = "disabled"
+        else:
+            btn_text  = "▶  30-Tage-Testversion starten"
+            btn_state = "normal"
 
         self.btn_trial = ctk.CTkButton(
-            right,
-            text="▶  30-Tage-Testversion starten",
-            height=50,
-            font=ctk.CTkFont(family=FONT, size=15, weight="bold"),
+            parent,
+            text=btn_text,
+            height=HEIGHT_BUTTON,
+            font=ctk.CTkFont(family=FONT, size=FONT_BUTTON, weight="bold"),
             fg_color=(NAVY_DARK, NAVY_MED),
             hover_color=(NAVY_MED, "#1a4a6a"),
             text_color=WHITE,
             border_width=1,
             border_color=(BLUE_ACCENT, BLUE_ACCENT),
             corner_radius=8,
+            state=btn_state,
             command=self._on_trial,
         )
-        self.btn_trial.grid(sticky="ew", padx=52, pady=(0, 32))
+        self.btn_trial.pack(fill="x", padx=pad, pady=(0, 32))
 
-    # ─── FOOTER ────────────────────────────────────────────────────────
+    # ── FOOTER ─────────────────────────────────────────────────────────
 
     def _build_footer(self):
-        tk.Frame(self, bg=SEP_D, height=1).grid(row=2, column=0, sticky="ew")
+        tk.Frame(self, bg=SEP_D, height=1).pack(side="bottom", fill="x")
 
         foot = tk.Frame(self, bg=NAVY_DARK)
-        foot.grid(row=3, column=0, sticky="ew")
-        foot.grid_columnconfigure(0, weight=1)
-        foot.grid_columnconfigure(1, weight=0)
+        foot.pack(side="bottom", fill="x")
 
-        tk.Label(
-            foot,
-            text=f"{COMPANY_NAME}  ·  {COMPANY_EMAIL}  ·  {COMPANY_WEBSITE}",
-            font=(FONT, 11), fg="#4a6a8a", bg=NAVY_DARK, anchor="w",
-        ).grid(row=0, column=0, padx=48, pady=14, sticky="w")
+        tk.Label(foot,
+                 text=f"{COMPANY_NAME}  ·  {COMPANY_EMAIL}  ·  {COMPANY_WEBSITE}",
+                 font=(FONT, FONT_FOOTER), fg="#4a6a8a", bg=NAVY_DARK, anchor="w",
+                 ).pack(side="left", padx=36, pady=10)
 
-        tk.Label(
-            foot,
-            text=f"Version {APP_VERSION}",
-            font=(FONT, 11), fg="#4a6a8a", bg=NAVY_DARK, anchor="e",
-        ).grid(row=0, column=1, padx=48, pady=14, sticky="e")
+        tk.Label(foot,
+                 text=f"Version {APP_VERSION}",
+                 font=(FONT, FONT_FOOTER), fg="#4a6a8a", bg=NAVY_DARK, anchor="e",
+                 ).pack(side="right", padx=36, pady=10)
 
     # ------------------------------------------------------------------ #
-    #  Button-Handler                                                      #
+    #  Handler                                                             #
     # ------------------------------------------------------------------ #
 
-    def _set_status(self, text: str, color: str):
-        self.lbl_status.configure(text=text, text_color=color)
+    def _set_status(self, text: str, color: str = ERROR_RED):
+        self.lbl_status.configure(fg=color, text=text)
 
     def _on_activate(self):
         customer = self.ent_customer.get().strip()
         key      = self.ent_key.get().strip()
 
         if not customer:
-            self._set_status("⚠  Bitte Firmennamen eingeben.", ERROR_RED)
+            self._set_status("⚠  Bitte Firmennamen eingeben.")
             self.ent_customer.focus_set()
             return
         if not key:
-            self._set_status("⚠  Bitte Lizenzschlüssel eingeben.", ERROR_RED)
+            self._set_status("⚠  Bitte Lizenzschlüssel eingeben.")
             self.ent_key.focus_set()
             return
 
@@ -386,7 +444,7 @@ class LicenseDialog(tk.Toplevel):
             self.result = "activated"
             self.after(1200, self.destroy)
         else:
-            self._set_status(f"⚠  {msg.splitlines()[0]}", ERROR_RED)
+            self._set_status(f"⚠  {msg.splitlines()[0]}")
             self.btn_activate.configure(text="🔑  Lizenz aktivieren", state="normal")
 
     def _on_trial(self):
@@ -394,7 +452,18 @@ class LicenseDialog(tk.Toplevel):
         self.result = "trial"
         self.destroy()
 
+    def _on_quit(self):
+        """Anwendung sofort sauber beenden."""
+        self.result = None
+        self.destroy()
+        try:
+            self.master.destroy()
+        except Exception:
+            pass
+        sys.exit(0)
+
     def _on_close(self):
+        """Fenster-X gedrückt → App beenden."""
         self.result = None
         self.destroy()
 

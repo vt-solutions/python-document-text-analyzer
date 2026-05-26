@@ -21,21 +21,15 @@ from src.version import (
     COMPANY_NAME, COMPANY_EMAIL, COMPANY_WEBSITE,
     LOGO_PATH, ICON_PATH,
 )
-
-# ------------------------------------------------------------------ #
-#  Farbpalette - vt-solutions Website                                 #
-# ------------------------------------------------------------------ #
-NAVY_DARK    = "#0d1f35"   # Header-Hintergrund (wie Hero-Bereich)
-NAVY_MED     = "#1a3a5c"   # Hover / sekundaere Elemente
-BLUE_ACCENT  = "#1e5fd4"   # Buttons, Akzente
-WHITE        = "#ffffff"
-LIGHT_BG     = "#f4f6f9"   # Heller Seitenhintergrund
-LIGHT_CARD   = "#ffffff"   # Kartenbereich (Textbox, Drop-Zone)
-DARK_BG      = "#0d1520"   # Dunkelmodus Hintergrund
-DARK_CARD    = "#132030"   # Dunkelmodus Karten
-TEXT_MUTED   = "#6b7c93"   # Grauer Hinweistext
-
-FONT_FAMILY  = "Segoe UI"  # Naechste Alternative zur Website-Schrift
+from src.theme import (
+    FONT_FAMILY,
+    FONT_TITLE, FONT_SECTION, FONT_LABEL, FONT_BODY,
+    FONT_INPUT, FONT_BUTTON, FONT_SUBTITLE, FONT_HINT, FONT_FOOTER, FONT_STATUS,
+    HEIGHT_BUTTON, HEIGHT_ENTRY,
+    NAVY_DARK, NAVY_MED, BLUE_ACCENT, WHITE,
+    LIGHT_BG, LIGHT_CARD, DARK_BG, DARK_CARD,
+    TEXT_MUTED, SEP_LIGHT, SEP_DARK, SUCCESS, ERROR_RED,
+)
 
 # Theme-Bezeichnungen für den Segmented-Button
 THEME_LIGHT = "☀  Hellmodus"
@@ -232,7 +226,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             logo_widget = ctk.CTkLabel(
                 self.header_frame,
                 text=COMPANY_NAME,
-                font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
+                font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_SECTION, weight="bold"),
                 text_color=(NAVY_DARK, WHITE),
                 bg_color=(LIGHT_CARD, NAVY_DARK),
             )
@@ -247,7 +241,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         ctk.CTkLabel(
             title_frame,
             text=APP_NAME,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=18, weight="bold"),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_TITLE, weight="bold"),
             text_color=(NAVY_DARK, WHITE),
             bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
@@ -256,7 +250,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         ctk.CTkLabel(
             title_frame,
             text="Texterkennung aus PDF-, Bild- und Office-Dateien",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_SUBTITLE),
             text_color=(TEXT_MUTED, "#6b8caa"),
             bg_color=(LIGHT_CARD, NAVY_DARK),
             anchor="w",
@@ -272,7 +266,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             values=[THEME_LIGHT, THEME_DARK],
             command=self._on_theme_change,
             height=32,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BODY),
             # Text immer Weiß – funktioniert auf allen Hintergründen
             text_color=WHITE,
             text_color_disabled="#7a9ab8",
@@ -293,7 +287,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             btn_frame,
             text="?  Hilfe",
             width=85, height=32,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BODY),
             fg_color="transparent",
             border_width=1,
             border_color=("#c2cede", "#4a6a8a"),
@@ -337,7 +331,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="📂  Datei auswählen",
             width=185, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON, weight="bold"),
             fg_color=BLUE_ACCENT,
             hover_color=NAVY_MED,
             corner_radius=8,
@@ -350,7 +344,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="🔍  Text erkennen",
             width=175, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON, weight="bold"),
             fg_color=NAVY_DARK,
             hover_color=NAVY_MED,
             corner_radius=8,
@@ -372,7 +366,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         # Statusmeldung
         self.lbl_status = ctk.CTkLabel(
             bar, text="",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BODY),
             text_color=(TEXT_MUTED, "#6b8caa"),
         )
         self.lbl_status.grid(row=0, column=2, sticky="w")
@@ -403,7 +397,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text="📂  Datei hier ablegen  –  oder Schaltfläche nutzen",
             anchor="w",
             text_color=(TEXT_MUTED, "#6b8caa"),
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BODY),
         )
         # pady=13 → kontrolliert die Höhe des Feldes (entspricht ~48 px gesamt)
         self.lbl_file.grid(row=0, column=0, padx=16, pady=13, sticky="ew")
@@ -411,7 +405,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
     def _build_textbox(self):
         self.textbox = ctk.CTkTextbox(
             self.content_frame,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON),
             wrap="word",
             fg_color=(LIGHT_CARD, DARK_CARD),
             border_width=2,
@@ -522,7 +516,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="✂  Markierten Text kopieren",
             width=220, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON),
             fg_color=BLUE_ACCENT,
             hover_color=NAVY_MED,
             text_color=WHITE,
@@ -535,7 +529,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="📋  Alles kopieren",
             width=170, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON),
             fg_color="#1a7a4a",
             hover_color="#145f39",
             text_color=WHITE,
@@ -548,7 +542,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="💾  Text speichern",
             width=170, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON),
             fg_color=NAVY_DARK,
             hover_color=NAVY_MED,
             corner_radius=8,
@@ -560,7 +554,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             bar,
             text="🗑  Text leeren",
             width=150, height=36,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BUTTON),
             fg_color="#b91c1c",
             hover_color="#991818",
             text_color=WHITE,
@@ -589,7 +583,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self.lbl_license = ctk.CTkLabel(
             footer,
             text=f"🔑  {status_text}",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             text_color=status_color,
             bg_color=NAVY_DARK,
         )
@@ -599,7 +593,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         ctk.CTkLabel(
             footer,
             text=f"{COMPANY_NAME}  |  {COMPANY_EMAIL}  |  {COMPANY_WEBSITE}  |  Version {APP_VERSION}",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             text_color="#6b8caa",
             bg_color=NAVY_DARK,
         ).grid(row=0, column=2, pady=10)
@@ -609,7 +603,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             footer,
             text="Lizenz",
             width=70, height=22,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=10),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             fg_color="transparent",
             border_width=1,
             border_color="#2a4a6a",
