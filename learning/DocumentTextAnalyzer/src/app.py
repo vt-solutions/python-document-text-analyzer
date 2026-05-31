@@ -165,9 +165,90 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self.grid_rowconfigure(1, weight=1)  # Content – wächst mit Fenster
         self.grid_rowconfigure(2, weight=0)  # Footer – feste Höhe
 
+        self._build_menubar()
         self._build_header()
         self._build_content()
         self._build_footer()
+
+    # ---- MENÜLEISTE -------------------------------------------------------
+
+    def _build_menubar(self):
+        dark    = self._is_dark
+        menu_bg = "#132030" if dark else "#ffffff"
+        menu_fg = "#e8eaf0" if dark else NAVY_DARK
+        act_bg  = BLUE_ACCENT
+        act_fg  = "#ffffff"
+
+        kw = dict(
+            tearoff=0,
+            bg=menu_bg, fg=menu_fg,
+            activebackground=act_bg, activeforeground=act_fg,
+            font=(FONT_FAMILY, 10),
+            relief="flat", bd=1,
+        )
+
+        menubar = tk.Menu(self, **kw)
+
+        # ── Datei ─────────────────────────────────────────────────────
+        m_datei = tk.Menu(menubar, **kw)
+        m_datei.add_command(
+            label="Datei auswählen",
+            command=self._choose_file,
+            accelerator="Strg+O",
+        )
+        m_datei.add_command(
+            label="Text speichern",
+            command=self._save_text,
+            accelerator="Strg+S",
+        )
+        m_datei.add_separator()
+        m_datei.add_command(
+            label="Beenden",
+            command=self.destroy,
+            accelerator="Alt+F4",
+        )
+        menubar.add_cascade(label="Datei", menu=m_datei)
+
+        # ── Bearbeiten ────────────────────────────────────────────────
+        m_bearb = tk.Menu(menubar, **kw)
+        m_bearb.add_command(
+            label="Markierten Text kopieren",
+            command=self._copy_selected_text,
+            accelerator="Strg+C",
+        )
+        m_bearb.add_command(
+            label="Alles kopieren",
+            command=self._copy_text,
+            accelerator="Strg+Shift+C",
+        )
+        m_bearb.add_separator()
+        m_bearb.add_command(
+            label="Text leeren",
+            command=self._clear_text,
+        )
+        menubar.add_cascade(label="Bearbeiten", menu=m_bearb)
+
+        # ── Hilfe ─────────────────────────────────────────────────────
+        m_hilfe = tk.Menu(menubar, **kw)
+        m_hilfe.add_command(
+            label="Hilfe öffnen",
+            command=self._show_info,
+            accelerator="F1",
+        )
+        m_hilfe.add_command(
+            label="Lizenz anzeigen",
+            command=self._show_license_dialog,
+        )
+        menubar.add_cascade(label="Hilfe", menu=m_hilfe)
+
+        self.config(menu=menubar)
+
+        # ── Tastenkürzel ──────────────────────────────────────────────
+        self.bind_all("<Control-o>", lambda e: self._choose_file())
+        self.bind_all("<Control-O>", lambda e: self._choose_file())
+        self.bind_all("<Control-s>", lambda e: self._save_text())
+        self.bind_all("<Control-S>", lambda e: self._save_text())
+        self.bind_all("<F1>",        lambda e: self._show_info())
 
     # ---- HEADER (immer Navy-Dunkel wie die Website) -------------------
 
@@ -283,18 +364,6 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
         self.seg_theme.set(THEME_DARK if self._is_dark else THEME_LIGHT)
         self.seg_theme.grid(row=0, column=0, padx=(0, 8))
 
-        ctk.CTkButton(
-            btn_frame,
-            text="?  Hilfe",
-            width=85, height=32,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_BODY),
-            fg_color="transparent",
-            border_width=1,
-            border_color=("#c2cede", "#4a6a8a"),
-            text_color=(NAVY_DARK, WHITE),
-            hover_color=(LIGHT_BG, NAVY_MED),
-            command=self._show_info,
-        ).grid(row=0, column=1)
 
     # ---- CONTENT BEREICH ----------------------------------------------
 
