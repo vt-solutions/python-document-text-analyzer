@@ -12,21 +12,29 @@ echo.
 :: Projektverzeichnis = Verzeichnis dieser Batch-Datei
 cd /d "%~dp0"
 
-:: ─── Python + PyInstaller prüfen ─────────────────────────────────
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [FEHLER] Python nicht gefunden. Bitte Python installieren.
-    pause & exit /b 1
+:: Python aus venv verwenden
+set PYTHON=.venv\Scripts\python.exe
+set PIP=.venv\Scripts\pip.exe
+set PYINSTALLER=.venv\Scripts\pyinstaller.exe
+
+if not exist "%PYTHON%" (
+    echo [FEHLER] venv nicht gefunden: %PYTHON%
+    echo         Bitte zuerst:  python -m venv .venv
+    pause
+    exit /b 1
 )
 
-python -c "import PyInstaller" >nul 2>&1
+echo [OK] Python: %PYTHON%
+
+"%PYTHON%" -c "import PyInstaller" >nul 2>&1
 if errorlevel 1 (
-    echo [INFO] PyInstaller nicht gefunden – wird installiert ...
-    pip install pyinstaller
+    echo [INFO] PyInstaller nicht gefunden - wird installiert ...
+    "%PIP%" install pyinstaller
 )
 
-:: ─── Alte Build-Artefakte bereinigen ─────────────────────────────
-echo [1/4]  Alte Artefakte bereinigen ...
+:: [1/5] Alte Artefakte bereinigen
+echo.
+echo [1/5] Alte Artefakte bereinigen ...
 
 if exist "dist\VT_Document_Text_Converter.exe" (
     del /f /q "dist\VT_Document_Text_Converter.exe"
@@ -38,54 +46,104 @@ if exist "build" (
     echo       build\ entfernt
 )
 
-:: __pycache__ rekursiv entfernen
+if exist "installer_output" (
+    rmdir /s /q "installer_output"
+    echo       installer_output\ entfernt
+)
+
 for /d /r . %%d in (__pycache__) do (
-    if exist "%%d" (
-        rmdir /s /q "%%d"
-    )
+    if exist "%%d" rmdir /s /q "%%d"
 )
 echo       __pycache__ bereinigt
 
-:: ─── Build ausführen ─────────────────────────────────────────────
+:: [2/5] Wizard-Bilder generieren
 echo.
-echo [2/4]  PyInstaller startet ...
+echo [2/5] Installer-Bilder generieren ...
+"%PYTHON%" installer\make_wizard_images.py
+if errorlevel 1 (
+    echo [WARNUNG] Wizard-Bilder konnten nicht erstellt werden - wird fortgesetzt.
+)
+
+:: [3/5] EXE bauen
+echo.
+echo [3/5] PyInstaller startet ...
 echo.
 
-pyinstaller VT_Converter.spec --noconfirm
+"%PYINSTALLER%" VT_Converter.spec --noconfirm
 
 if errorlevel 1 (
     echo.
-    echo [FEHLER] Build fehlgeschlagen!
-    pause & exit /b 1
+    echo [FEHLER] EXE-Build fehlgeschlagen!
+    pause
+    exit /b 1
 )
 
-:: ─── Ergebnis prüfen ─────────────────────────────────────────────
+:: [4/5] EXE pruefen
 echo.
-echo [3/4]  Ergebnis prüfen ...
+echo [4/5] EXE pruefen ...
 
 set EXE=dist\VT_Document_Text_Converter.exe
 if not exist "%EXE%" (
     echo [FEHLER] EXE nicht gefunden: %EXE%
-    pause & exit /b 1
+    pause
+    exit /b 1
 )
 
-:: Dateigröße ermitteln (für die Ausgabe)
 for %%f in ("%EXE%") do set SIZE=%%~zf
 set /a SIZE_MB=!SIZE! / 1048576
+echo       EXE: %EXE%  (~!SIZE_MB! MB)
 
+:: [5/5] Installer bauen (Inno Setup)
+echo.
+echo [5/5] Installer bauen (Inno Setup) ...
+
+set ISCC=
+if exist "C:\Program Files (x86)\Inno Setup 6\iscc.exe" set ISCC=C:\Program Files (x86)\Inno Setup 6\iscc.exe
+if exist "C:\Program Files\Inno Setup 6\iscc.exe" set ISCC=C:\Program Files\Inno Setup 6\iscc.exe
+where iscc >nul 2>&1 && if "!ISCC!"=="" set ISCC=iscc
+
+if "!ISCC!"=="" (
+    echo [INFO] Inno Setup 6 nicht gefunden - Installer wird uebersprungen.
+    echo        https://jrsoftware.org/isdl.php
+    goto :done
+)
+
+if not exist "installer_output" mkdir "installer_output"
+
+"!ISCC!" "installer\VT_Converter_Setup.iss"
+
+if errorlevel 1 (
+    echo [FEHLER] Installer-Build fehlgeschlagen!
+    pause
+    exit /b 1
+)
+
+set SETUP_EXE=installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe
+if exist "!SETUP_EXE!" (
+    for %%f in ("!SETUP_EXE!") do set SETUP_SIZE=%%~zf
+    set /a SETUP_MB=!SETUP_SIZE! / 1048576
+    echo       Setup: !SETUP_EXE!  (~!SETUP_MB! MB)
+)
+
+:done
 echo.
 echo ============================================================
-echo [4/4]  BUILD ERFOLGREICH!
+echo   BUILD ABGESCHLOSSEN
 echo.
-echo   Datei:   %EXE%
-echo   Groesse: ~!SIZE_MB! MB
+echo   EXE:   dist\VT_Document_Text_Converter.exe
+if exist "installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe" (
+    echo   SETUP: installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe
+)
 echo ============================================================
 echo.
 
-:: Optional: Ausgabeverzeichnis öffnen
-set /p OPEN="Ausgabeordner 'dist' öffnen? [j/n]: "
+set /p OPEN="Ausgabeordner oeffnen? [j/n]: "
 if /i "!OPEN!"=="j" (
-    explorer dist
+    if exist "installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe" (
+        explorer installer_output
+    ) else (
+        explorer dist
+    )
 )
 
 endlocal

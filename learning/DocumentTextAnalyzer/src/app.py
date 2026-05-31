@@ -585,24 +585,22 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             text=f"🔑  {status_text}",
             font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             text_color=status_color,
-            bg_color=NAVY_DARK,
         )
-        self.lbl_license.grid(row=0, column=0, padx=(16, 0), pady=10, sticky="w")
+        self.lbl_license.grid(row=0, column=0, padx=(16, 0), pady=8, sticky="w")
 
-        # ── Firmendaten (mitte-rechts) ────────────────────────────────
+        # ── Firmendaten (mitte) ───────────────────────────────────────
         ctk.CTkLabel(
             footer,
             text=f"{COMPANY_NAME}  |  {COMPANY_EMAIL}  |  {COMPANY_WEBSITE}  |  Version {APP_VERSION}",
             font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             text_color="#6b8caa",
-            bg_color=NAVY_DARK,
-        ).grid(row=0, column=2, pady=10)
+        ).grid(row=0, column=2, pady=8)
 
         # ── Lizenz-Button (rechts) ────────────────────────────────────
         ctk.CTkButton(
             footer,
-            text="Lizenz",
-            width=70, height=22,
+            text="🔑 Lizenz",
+            width=80, height=24,
             font=ctk.CTkFont(family=FONT_FAMILY, size=FONT_FOOTER),
             fg_color="transparent",
             border_width=1,
@@ -611,7 +609,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             hover_color=NAVY_MED,
             corner_radius=4,
             command=self._show_license_dialog,
-        ).grid(row=0, column=3, padx=(8, 16), pady=10)
+        ).grid(row=0, column=3, padx=(8, 16), pady=8)
 
     # ------------------------------------------------------------------ #
     #  Drag & Drop                                                        #

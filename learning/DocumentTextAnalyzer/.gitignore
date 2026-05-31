@@ -24,3 +24,7 @@ input/*
 output/*
 !input/.gitkeep
 !output/.gitkeep
+
+# Installer Build-Artefakte
+installer_output/
+installer/dependencies/*.exe

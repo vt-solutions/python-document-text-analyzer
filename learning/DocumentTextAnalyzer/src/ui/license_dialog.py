@@ -202,15 +202,15 @@ class LicenseDialog(tk.Toplevel):
         tk.Frame(parent, bg=SEP_D if dark else SEP_L,
                  height=1).pack(fill="x", padx=pad, pady=(8, 24))
 
-        # Firmenname
-        tk.Label(parent, text="Firmenname",
+        # Benutzername
+        tk.Label(parent, text="Benutzername",
                  font=(FONT, FONT_LABEL, "bold"),
                  fg=muted, bg=bg, anchor="w",
                  ).pack(fill="x", padx=pad, pady=(0, 4))
 
         self.ent_customer = ctk.CTkEntry(
             parent,
-            placeholder_text="z. B.  Mustermann GmbH",
+            placeholder_text="z. B.  Max Mustermann",
             height=HEIGHT_ENTRY,
             font=ctk.CTkFont(family=FONT, size=FONT_INPUT),
             fg_color=(CARD_L, "#0d2035"),
@@ -421,7 +421,7 @@ class LicenseDialog(tk.Toplevel):
         key      = self.ent_key.get().strip()
 
         if not customer:
-            self._set_status("⚠  Bitte Firmennamen eingeben.")
+            self._set_status("⚠  Bitte Benutzernamen eingeben.")
             self.ent_customer.focus_set()
             return
         if not key:

@@ -101,7 +101,7 @@ def activate(customer: str, key: str) -> tuple[bool, str]:
     key      = key.strip().upper()
 
     if not customer:
-        return False, "Bitte Firmennamen eingeben."
+        return False, "Bitte Benutzernamen eingeben."
 
     ok, edition = validate_key(key)
     if not ok:
