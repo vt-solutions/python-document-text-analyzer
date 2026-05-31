@@ -41,8 +41,12 @@ class InfoDialog(tk.Toplevel):
         bg = DARK_BG if self._is_dark else LIGHT_BG
         self.configure(bg=bg)
 
-        # VT-Icon setzen (Titelleiste + Taskleiste)
-        ico_path = os.path.join(os.path.dirname(__file__), "..", "..", ICON_PATH)
+        # VT-Icon setzen (Titelleiste + ALT+TAB)
+        import sys
+        _base    = (sys._MEIPASS
+                    if hasattr(sys, "_MEIPASS")
+                    else os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..")))
+        ico_path = os.path.join(_base, ICON_PATH)
         if os.path.isfile(ico_path):
             try:
                 self.iconbitmap(ico_path)

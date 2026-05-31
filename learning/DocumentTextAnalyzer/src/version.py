@@ -4,7 +4,7 @@ Zentrale Versions- und Firmendaten der Anwendung.
 """
 
 APP_NAME        = "VT Document Text Converter"
-APP_VERSION     = "1.0.0"
+APP_VERSION     = "2.0.0"
 
 COMPANY_NAME    = "vt-solutions GmbH"
 COMPANY_EMAIL   = "support@vt-solutions.de"
