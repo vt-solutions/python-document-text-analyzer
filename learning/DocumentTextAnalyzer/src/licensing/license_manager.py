@@ -1,9 +1,15 @@
 """
 license_manager.py
-Einfaches Lizenzsystem fuer VT Document Text Converter.
+Lizenzsystem fuer VT Document Text Converter.
+
+Editionen:
+  TRIAL    – 30-Tage-Testversion, gleiche Funktionen wie STANDARD
+  STANDARD – Grundfunktionen (PDF, Bild-OCR, Office-Formate, Kopieren/Speichern als TXT)
+  PRO      – Alle Funktionen: neue Formate (.txt/.odt/.rtf), DOCX/PDF-Export,
+             Batch-Verarbeitung, Textbearbeitung im Editor
 
 Schluessel-Format:  VT-YYYY-XXXX-XXXX
-Beispiel:           VT-2025-ABCD-1234
+Beispiel:           VT-2026-PRO1-0001
 
 Datei: %APPDATA%\\vt-solutions\\VTConverter\\license.json
 """
@@ -23,15 +29,40 @@ _FILE = _DIR / "license.json"
 
 KEY_PATTERN = re.compile(r"^VT-\d{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", re.IGNORECASE)
 
-# Interne Demo-/Test-Schlüssel (für Entwicklung und Demos)
-_DEMO_KEYS: set[str] = {
-    "VT-2025-DEMO-0001",
-    "VT-2025-ABCD-1234",
-    "VT-2026-PRO1-0001",
-    "VT-2026-BETA-TEST",
+# Demo-/Test-Schlüssel mit zugewiesener Edition
+_DEMO_KEYS: dict[str, str] = {
+    "VT-2025-DEMO-0001": "STANDARD",
+    "VT-2025-ABCD-1234": "STANDARD",
+    "VT-2026-PRO1-0001": "PRO",
+    "VT-2026-PRO2-0002": "PRO",
+    "VT-2026-BETA-TEST": "PRO",
 }
 
 TRIAL_DAYS = 30
+
+# ------------------------------------------------------------------ #
+#  Feature-Gates                                                      #
+# ------------------------------------------------------------------ #
+
+# Welche Editionen haben Zugriff auf welche Funktionen
+_FEATURES: dict[str, set[str]] = {
+    "TRIAL":    {"basic_extraction", "copy", "save_txt"},
+    "STANDARD": {"basic_extraction", "copy", "save_txt"},
+    "PRO": {
+        "basic_extraction", "copy", "save_txt",
+        "extra_formats",    # .txt, .odt, .rtf
+        "export_docx",      # Als DOCX speichern
+        "export_pdf",       # Als PDF speichern
+        "batch",            # Batch-Verarbeitung
+        "edit_text",        # Textbearbeitung im Editor
+    },
+}
+
+
+def has_feature(feature: str) -> bool:
+    """Gibt True zurück wenn die aktuelle Edition das Feature enthält."""
+    edition = get_edition()
+    return feature in _FEATURES.get(edition, set())
 
 
 # ------------------------------------------------------------------ #
@@ -39,7 +70,6 @@ TRIAL_DAYS = 30
 # ------------------------------------------------------------------ #
 
 def load() -> dict:
-    """Lädt die gespeicherte Lizenzdatei. Gibt {} zurück wenn nicht vorhanden."""
     try:
         if _FILE.exists():
             with open(_FILE, "r", encoding="utf-8") as f:
@@ -62,14 +92,7 @@ def _save(data: dict) -> None:
 #  Validierung                                                        #
 # ------------------------------------------------------------------ #
 
-def _checksum(key: str) -> str:
-    """Interne Prüfsumme – verhindert triviale Fälschungen."""
-    secret = "vt-solutions-2025"
-    return hashlib.sha256(f"{secret}:{key.upper()}".encode()).hexdigest()[:8].upper()
-
-
 def validate_format(key: str) -> bool:
-    """Prüft nur das Format (VT-YYYY-XXXX-XXXX)."""
     return bool(KEY_PATTERN.match(key.strip()))
 
 
@@ -82,9 +105,9 @@ def validate_key(key: str) -> tuple[bool, str]:
     if not validate_format(key):
         return False, ""
     if key in _DEMO_KEYS:
-        return True, "PRO"
-    # Für alle korrekt formatierten Schlüssel → STANDARD (Demo-Modus)
-    # In Produktion: hier Server-API aufrufen
+        return True, _DEMO_KEYS[key]
+    # Produktion: hier Server-API aufrufen.
+    # Fallback: korrekt formatierte Schlüssel → STANDARD
     return True, "STANDARD"
 
 
@@ -93,10 +116,6 @@ def validate_key(key: str) -> tuple[bool, str]:
 # ------------------------------------------------------------------ #
 
 def activate(customer: str, key: str) -> tuple[bool, str]:
-    """
-    Aktiviert die Lizenz.
-    Gibt (erfolg, nachricht) zurück.
-    """
     customer = customer.strip()
     key      = key.strip().upper()
 
@@ -108,7 +127,7 @@ def activate(customer: str, key: str) -> tuple[bool, str]:
         return False, (
             "Ungültiger Lizenzschlüssel.\n"
             "Erwartet: VT-YYYY-XXXX-XXXX\n"
-            "Beispiel: VT-2025-ABCD-1234"
+            "Beispiel: VT-2026-PRO1-0001"
         )
 
     data = {
@@ -119,11 +138,12 @@ def activate(customer: str, key: str) -> tuple[bool, str]:
         "activated_at":  datetime.now().isoformat(),
     }
     _save(data)
-    return True, f"Lizenz erfolgreich aktiviert!\nEdition: {edition}\nKunde: {customer}"
+
+    edition_label = {"PRO": "PRO", "STANDARD": "Standard"}.get(edition, edition)
+    return True, f"Lizenz erfolgreich aktiviert!\nEdition: {edition_label}\nKunde: {customer}"
 
 
 def start_trial() -> dict:
-    """Startet eine 30-Tage-Testversion."""
     data = {
         "customer":      "Testbenutzer",
         "license_key":   "TRIAL",
@@ -137,7 +157,6 @@ def start_trial() -> dict:
 
 
 def deactivate() -> None:
-    """Entfernt die Lizenzdatei (für Tests / Deinstallation)."""
     try:
         if _FILE.exists():
             _FILE.unlink()
@@ -165,12 +184,19 @@ def get_customer() -> str:
     return load().get("customer", "–")
 
 
+def is_pro() -> bool:
+    return get_edition() == "PRO"
+
+
 def get_status_text() -> str:
     data = load()
     if not data:
         return "Nicht aktiviert"
     if data.get("activated"):
-        return f"{data.get('edition', 'PRO')}  ·  {data.get('customer', '')}"
+        edition_label = {"PRO": "PRO", "STANDARD": "Standard"}.get(
+            data.get("edition", ""), data.get("edition", "")
+        )
+        return f"{edition_label}  ·  {data.get('customer', '')}"
     # Trial
     ends = data.get("trial_ends", "")
     if ends:
