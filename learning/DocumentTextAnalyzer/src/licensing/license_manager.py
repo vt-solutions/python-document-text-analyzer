@@ -1,6 +1,6 @@
 """
 license_manager.py
-Lizenzsystem fuer VT Document Text Converter.
+Lizenzsystem für VT Document Text Converter.
 
 Editionen:
   TRIAL    – 30-Tage-Testversion, gleiche Funktionen wie STANDARD
@@ -8,66 +8,58 @@ Editionen:
   PRO      – Alle Funktionen: neue Formate (.txt/.odt/.rtf), DOCX/PDF-Export,
              Batch-Verarbeitung, Textbearbeitung im Editor
 
-Schluessel-Format:  VT-YYYY-XXXX-XXXX
-Beispiel:           VT-2026-PRO1-0001
+Schlüsselformat:  VT-YYYY-EPPP-CCCC
+  YYYY = Jahr, E = Editions-Code (S/P), PPP = Seriennummer (Base36), CCCC = HMAC-Signatur
+
+Validierung: HMAC-SHA256 (offline, ohne Internetverbindung). Zufällige oder manipulierte
+Schlüssel werden mit Sicherheit abgelehnt. Neue Schlüssel werden mit tools/keygen.py erzeugt.
 
 Datei: %APPDATA%\\vt-solutions\\VTConverter\\license.json
 """
 
 import json
-import re
-import hashlib
 import os
-from pathlib import Path
+import re
 from datetime import datetime, timedelta
+from pathlib import Path
 
-# ------------------------------------------------------------------ #
-#  Konstanten                                                         #
-# ------------------------------------------------------------------ #
+from src.licensing.license_crypto import validate_key as _crypto_validate, get_machine_id
+
+# ── Pfade ─────────────────────────────────────────────────────────────── #
 _DIR  = Path(os.environ.get("APPDATA", Path.home())) / "vt-solutions" / "VTConverter"
 _FILE = _DIR / "license.json"
 
+# ── Formate & Konstanten ──────────────────────────────────────────────── #
 KEY_PATTERN = re.compile(r"^VT-\d{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", re.IGNORECASE)
-
-# Demo-/Test-Schlüssel mit zugewiesener Edition
-_DEMO_KEYS: dict[str, str] = {
-    "VT-2025-DEMO-0001": "STANDARD",
-    "VT-2025-ABCD-1234": "STANDARD",
-    "VT-2026-PRO1-0001": "PRO",
-    "VT-2026-PRO2-0002": "PRO",
-    "VT-2026-BETA-TEST": "PRO",
-}
 
 TRIAL_DAYS = 30
 
-# ------------------------------------------------------------------ #
-#  Feature-Gates                                                      #
-# ------------------------------------------------------------------ #
+# Auf True setzen, um Lizenz an den Aktivierungs-PC zu binden.
+# Achtung: Bei Hardware-Wechsel muss der Nutzer erneut aktivieren.
+MACHINE_BINDING_ENABLED = False
 
-# Welche Editionen haben Zugriff auf welche Funktionen
+# ── Feature-Gates ─────────────────────────────────────────────────────── #
 _FEATURES: dict[str, set[str]] = {
     "TRIAL":    {"basic_extraction", "copy", "save_txt"},
     "STANDARD": {"basic_extraction", "copy", "save_txt"},
     "PRO": {
         "basic_extraction", "copy", "save_txt",
-        "extra_formats",    # .txt, .odt, .rtf
-        "export_docx",      # Als DOCX speichern
-        "export_pdf",       # Als PDF speichern
-        "batch",            # Batch-Verarbeitung
-        "edit_text",        # Textbearbeitung im Editor
+        "extra_formats",   # .txt, .odt, .rtf
+        "export_docx",     # Als DOCX speichern
+        "export_pdf",      # Als PDF speichern
+        "batch",           # Batch-Verarbeitung
+        "edit_text",       # Textbearbeitung im Editor
     },
 }
 
 
 def has_feature(feature: str) -> bool:
-    """Gibt True zurück wenn die aktuelle Edition das Feature enthält."""
+    """Gibt True zurück, wenn die aktive Edition das Feature enthält."""
     edition = get_edition()
     return feature in _FEATURES.get(edition, set())
 
 
-# ------------------------------------------------------------------ #
-#  Datei I/O                                                          #
-# ------------------------------------------------------------------ #
+# ── Datei-I/O ─────────────────────────────────────────────────────────── #
 
 def load() -> dict:
     try:
@@ -88,32 +80,41 @@ def _save(data: dict) -> None:
         pass
 
 
-# ------------------------------------------------------------------ #
-#  Validierung                                                        #
-# ------------------------------------------------------------------ #
+# ── Validierung ───────────────────────────────────────────────────────── #
 
 def validate_format(key: str) -> bool:
+    """Schnell-Prüfung: Stimmt das Schlüsselformat?"""
     return bool(KEY_PATTERN.match(key.strip()))
 
 
 def validate_key(key: str) -> tuple[bool, str]:
     """
-    Prüft Schlüssel vollständig.
-    Gibt (gültig, edition) zurück.
+    Prüft Schlüssel vollständig (Format + kryptografische Signatur).
+    Rückgabe: (gültig, edition) – edition ist '' bei ungültigem Schlüssel.
     """
     key = key.strip().upper()
     if not validate_format(key):
         return False, ""
-    if key in _DEMO_KEYS:
-        return True, _DEMO_KEYS[key]
-    # Produktion: hier Server-API aufrufen.
-    # Fallback: korrekt formatierte Schlüssel → STANDARD
-    return True, "STANDARD"
+    return _crypto_validate(key)
 
 
-# ------------------------------------------------------------------ #
-#  Aktionen                                                           #
-# ------------------------------------------------------------------ #
+# ── Hardware-Bindung ──────────────────────────────────────────────────── #
+
+def check_machine_binding() -> bool:
+    """
+    Gibt True zurück, wenn die Hardware-Bindung deaktiviert ist oder
+    der aktuelle PC mit dem Aktivierungs-PC übereinstimmt.
+    """
+    if not MACHINE_BINDING_ENABLED:
+        return True
+    data = load()
+    stored_id = data.get("machine_id")
+    if not stored_id:
+        return True
+    return stored_id == get_machine_id()
+
+
+# ── Aktionen ──────────────────────────────────────────────────────────── #
 
 def activate(customer: str, key: str) -> tuple[bool, str]:
     customer = customer.strip()
@@ -127,20 +128,26 @@ def activate(customer: str, key: str) -> tuple[bool, str]:
         return False, (
             "Ungültiger Lizenzschlüssel.\n"
             "Erwartet: VT-YYYY-XXXX-XXXX\n"
-            "Beispiel: VT-2026-PRO1-0001"
+            "Beispiel: VT-2026-P001-XXXX\n\n"
+            "Bitte prüfen Sie die Schreibweise oder wenden Sie sich\n"
+            "an support@vt-solutions.de."
         )
 
-    data = {
-        "customer":      customer,
-        "license_key":   key,
-        "activated":     True,
-        "edition":       edition,
-        "activated_at":  datetime.now().isoformat(),
+    data: dict = {
+        "customer":     customer,
+        "license_key":  key,
+        "activated":    True,
+        "edition":      edition,
+        "activated_at": datetime.now().isoformat(),
     }
+
+    if MACHINE_BINDING_ENABLED:
+        data["machine_id"] = get_machine_id()
+
     _save(data)
 
-    edition_label = {"PRO": "PRO", "STANDARD": "Standard"}.get(edition, edition)
-    return True, f"Lizenz erfolgreich aktiviert!\nEdition: {edition_label}\nKunde: {customer}"
+    label = {"PRO": "PRO", "STANDARD": "Standard"}.get(edition, edition)
+    return True, f"Lizenz erfolgreich aktiviert!\nEdition: {label}\nKunde: {customer}"
 
 
 def start_trial() -> dict:
@@ -164,16 +171,16 @@ def deactivate() -> None:
         pass
 
 
-# ------------------------------------------------------------------ #
-#  Status-Abfragen                                                    #
-# ------------------------------------------------------------------ #
+# ── Status-Abfragen ───────────────────────────────────────────────────── #
 
 def is_first_run() -> bool:
     return not _FILE.exists()
 
 
 def is_activated() -> bool:
-    return load().get("activated", False)
+    if not load().get("activated", False):
+        return False
+    return check_machine_binding()
 
 
 def get_edition() -> str:
@@ -192,11 +199,15 @@ def get_status_text() -> str:
     data = load()
     if not data:
         return "Nicht aktiviert"
+
     if data.get("activated"):
-        edition_label = {"PRO": "PRO", "STANDARD": "Standard"}.get(
+        if MACHINE_BINDING_ENABLED and not check_machine_binding():
+            return "Lizenz – Anderer PC"
+        label = {"PRO": "PRO", "STANDARD": "Standard"}.get(
             data.get("edition", ""), data.get("edition", "")
         )
-        return f"{edition_label}  ·  {data.get('customer', '')}"
+        return f"{label}  ·  {data.get('customer', '')}"
+
     # Trial
     ends = data.get("trial_ends", "")
     if ends:
@@ -207,6 +218,7 @@ def get_status_text() -> str:
             return f"Testversion  ·  noch {remaining} Tage"
         except Exception:
             pass
+
     return "Testversion"
 
 
