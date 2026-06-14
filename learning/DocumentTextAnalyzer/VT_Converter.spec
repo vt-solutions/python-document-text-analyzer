@@ -76,6 +76,7 @@ a = Analysis(
         # ── Eigene App-Module ──────────────────────────────────────────
         'src', 'src.app', 'src.version', 'src.file_router',
         'src.pdf_extractor', 'src.image_ocr', 'src.office_extractor',
+        'src.ocr_config',    # zentrale Tesseract-Pfadkonfiguration
         'src.clipboard', 'src.settings_manager', 'src.theme',
 
         # PRO-Module: delayed import (innerhalb von Funktionen/if-Bloecken)

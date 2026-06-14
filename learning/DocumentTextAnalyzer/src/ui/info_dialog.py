@@ -187,27 +187,39 @@ class InfoDialog(tk.Toplevel):
 
         # ── 2. Unterstützte Formate ───────────────────────────────────
         c2 = make_card("📁  Unterstützte Dateiformate")
-        add_subtitle(c2, "PDF")
+        add_subtitle(c2, "Standard  (alle Editionen)")
         add_row(c2, "  PDF-Dateien (mit Text)   →  direkte Textextraktion")
         add_row(c2, "  Gescannte PDF             →  OCR-Erkennung")
-        add_subtitle(c2, "Bilder")
         add_row(c2, "  JPG · PNG · TIFF · BMP   →  OCR-Bilderkennung")
-        add_subtitle(c2, "Microsoft Office")
         add_row(c2, "  Word  (.docx)             →  Text direkt lesen")
         add_row(c2, "  Excel  (.xlsx)            →  Zellinhalte lesen")
         add_row(c2, "  PowerPoint  (.pptx)       →  Folientexte lesen")
+        add_subtitle(c2, "PRO-Edition")
+        add_row(c2, "  Textdateien  (.txt)       →  direkte Extraktion")
+        add_row(c2, "  LibreOffice Writer (.odt) →  direkte Extraktion")
+        add_row(c2, "  Rich Text Format  (.rtf)  →  direkte Extraktion")
         add_gap(c2, 8)
 
         # ── 3. Funktionen ─────────────────────────────────────────────
         c3 = make_card("⚙️  Funktionen")
+        add_subtitle(c3, "Standard & Trial")
         for line in [
             "  ✓  Datei auswählen oder per Drag & Drop ablegen",
-            "  ✓  Automatische Dateityp-Erkennung",
+            "  ✓  Automatische Erkennung beim Öffnen der Datei",
             "  ✓  PDF-Text direkt extrahieren",
             "  ✓  Bilder und Scans per OCR erkennen  (DE + EN)",
             "  ✓  Office-Dokumente vollständig auslesen",
-            "  ✓  Erkannten Text kopieren",
+            "  ✓  Erkannten Text kopieren (Auswahl oder alles)",
             "  ✓  Text als .txt-Datei speichern",
+        ]:
+            add_row(c3, line, top=2, bottom=2)
+        add_subtitle(c3, "PRO-Edition  (zusätzlich)")
+        for line in [
+            "  ✓  Erweiterte Eingabeformate  (.txt · .odt · .rtf)",
+            "  ✓  Export als DOCX  (Word-Dokument)",
+            "  ✓  Export als PDF",
+            "  ✓  Batch-Verarbeitung mehrerer Dateien gleichzeitig",
+            "  ✓  Textbearbeitung direkt im Editor",
         ]:
             add_row(c3, line, top=2, bottom=2)
         add_gap(c3, 8)
@@ -215,7 +227,7 @@ class InfoDialog(tk.Toplevel):
         # ── 4. OCR-Hinweis ────────────────────────────────────────────
         c4 = make_card("🔍  OCR – Texterkennung in Bildern")
         add_row(c4, "Für Bilder und gescannte PDFs wird Tesseract OCR")
-        add_row(c4, "verwendet  (Open-Source, kostenlos).")
+        add_row(c4, "verwendet  (Open-Source, lokal – keine Cloud).")
         add_gap(c4, 4)
         add_row(c4, "  Sprachen:   Deutsch + Englisch")
         add_row(c4, "  Engine:     Tesseract 5.x")
@@ -227,9 +239,9 @@ class InfoDialog(tk.Toplevel):
         # ── 5. Bedienung ──────────────────────────────────────────────
         c5 = make_card("🖱️  Bedienung")
         add_row(c5, "  1.  Datei auswählen  (Button oder Drag & Drop)")
-        add_row(c5, "  2.  »Text erkennen«  klicken")
+        add_row(c5, "  2.  Text wird automatisch erkannt und angezeigt")
         add_row(c5, "  3.  Text im Editor prüfen")
-        add_row(c5, "  4.  »Alles kopieren«  oder  »Text speichern«")
+        add_row(c5, "  4.  »Alles kopieren«  ·  »Speichern (TXT)«  ·  PRO: DOCX/PDF")
         add_gap(c5, 8)
 
         # ── 6. Über / Firma ───────────────────────────────────────────

@@ -35,7 +35,8 @@ def export_docx(text: str, save_path: str) -> tuple[bool, str]:
         # Inhalt: Absätze splitten
         for line in text.split("\n"):
             para = doc.add_paragraph(line)
-            para.runs[0].font.size = Pt(11) if para.runs else None
+            if para.runs:
+                para.runs[0].font.size = Pt(11)
 
         doc.save(save_path)
         return True, f"Als DOCX gespeichert: {save_path}"

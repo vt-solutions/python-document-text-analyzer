@@ -44,9 +44,10 @@ def extract_xlsx(file_path: str) -> str:
                 if row_values:
                     text_parts.append("\t".join(row_values))
 
+        num_sheets = len(wb.sheetnames)
         wb.close()
 
-        if len(text_parts) <= len(wb.sheetnames):
+        if len(text_parts) <= num_sheets:
             return "Keine Inhalte in der Excel-Datei gefunden."
 
         return "\n".join(text_parts)

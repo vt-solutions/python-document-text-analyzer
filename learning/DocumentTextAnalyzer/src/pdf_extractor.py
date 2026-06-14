@@ -5,13 +5,13 @@ Extrahiert Text aus PDF-Dateien.
 - Gescanntes PDF: OCR mit pytesseract (Seite als Bild rendern)
 """
 
-from pypdf import PdfReader
-from PIL import Image
-import pytesseract
 import io
 
-# Tesseract-Pfad (da nicht im Windows PATH)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+import pytesseract
+from PIL import Image
+from pypdf import PdfReader
+
+import src.ocr_config  # setzt pytesseract.tesseract_cmd  # noqa: F401
 
 
 def extract_pdf(file_path: str) -> str:
