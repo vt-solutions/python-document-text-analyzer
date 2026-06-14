@@ -10,10 +10,9 @@ __pycache__/
 venv/
 env/
 
-# PyInstaller
+# PyInstaller (Artefakte, aber NICHT die .spec-Konfigurationsdatei)
 dist/
 build/
-*.spec
 
 # IDE
 .vscode/

@@ -7,9 +7,7 @@ Verwendet pytesseract mit Deutsch + Englisch als Standardsprachen.
 import pytesseract
 from PIL import Image
 
-
-# Tesseract-Pfad (automatisch gesetzt, da nicht im Windows PATH)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+import src.ocr_config  # setzt pytesseract.tesseract_cmd  # noqa: F401
 
 
 def extract_image_ocr(file_path: str, lang: str = "deu+eng") -> str:
