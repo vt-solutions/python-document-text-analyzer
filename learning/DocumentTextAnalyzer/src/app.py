@@ -93,7 +93,7 @@ class DocumentTextAnalyzerApp(TkinterDnD.Tk):
             return True
         messagebox.showinfo(
             "PRO-Feature",
-            f"„{feature_label}" ist nur in der PRO-Version verfügbar.\n\n"
+            f"{feature_label} ist nur in der PRO-Version verfügbar.\n\n"
             "Upgraden Sie auf VT Document Text Converter PRO,\n"
             "um dieses Feature zu nutzen.",
             parent=self,
