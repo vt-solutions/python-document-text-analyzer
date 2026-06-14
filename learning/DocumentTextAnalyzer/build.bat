@@ -118,7 +118,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set SETUP_EXE=installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe
+:: Version dynamisch aus der .iss-Datei lesen
+for /f "tokens=3 delims== " %%v in ('findstr /i "AppVersion" installer\VT_Converter_Setup.iss') do set APP_VER=%%~v
+
+set SETUP_EXE=installer_output\VT_Document_Text_Converter_Setup_v!APP_VER!.exe
 if exist "!SETUP_EXE!" (
     for %%f in ("!SETUP_EXE!") do set SETUP_SIZE=%%~zf
     set /a SETUP_MB=!SETUP_SIZE! / 1048576
@@ -131,15 +134,15 @@ echo ============================================================
 echo   BUILD ABGESCHLOSSEN
 echo.
 echo   EXE:   dist\VT_Document_Text_Converter.exe
-if exist "installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe" (
-    echo   SETUP: installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe
+if exist "!SETUP_EXE!" (
+    echo   SETUP: !SETUP_EXE!
 )
 echo ============================================================
 echo.
 
 set /p OPEN="Ausgabeordner oeffnen? [j/n]: "
 if /i "!OPEN!"=="j" (
-    if exist "installer_output\VT_Document_Text_Converter_Setup_v1.0.0.exe" (
+    if exist "!SETUP_EXE!" (
         explorer installer_output
     ) else (
         explorer dist

@@ -8,7 +8,7 @@
 ; =============================================================================
 
 #define AppName        "VT Document Text Converter"
-#define AppVersion     "2.0.0"
+#define AppVersion     "3.0.0"
 #define AppPublisher   "vt-solutions GmbH"
 #define AppURL         "https://www.vt-solutions.de"
 #define AppSupportURL  "mailto:support@vt-solutions.de"
@@ -113,7 +113,11 @@ Name: "{commonstartmenu}\Programme\{#AppName} Schnellstart"; Filename: "{app}\{#
 ; =============================================================================
 [Run]
 ; Tesseract installieren - nur wenn noch nicht vorhanden
-Filename: "{tmp}\{#TesseractSetup}"; Parameters: "/VERYSILENT /NORESTART /ALLUSERS /DIR=""C:\Program Files\Tesseract-OCR"""; StatusMsg: "{cm:TesseractInstalling}"; Check: TesseractNeeded; Flags: waituntilterminated
+; /COMPONENTS aktiviert Deutsch + Englisch als Sprachpakete (benoetigt fuer deu+eng OCR)
+Filename: "{tmp}\{#TesseractSetup}"; Parameters: "/VERYSILENT /NORESTART /ALLUSERS /DIR=""C:\Program Files\Tesseract-OCR"" /COMPONENTS=""tesseract,Additional language data (download),Additional language data (download)\German,Additional language data (download)\English"""; StatusMsg: "{cm:TesseractInstalling}"; Check: TesseractNeeded; Flags: waituntilterminated
+
+; Sicherheitsnetz: Wenn Deutsch-Tessdata fehlt, Hinweis anzeigen
+Filename: "{app}\{#AppExeName}"; Parameters: ""; Check: GermanTessDataMissing; Flags: nowait skipifsilent
 
 ; Anwendung nach Installation starten (optional)
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
@@ -188,6 +192,29 @@ begin
         Result := False;
         Exit;
       end;
+    end;
+  end;
+end;
+
+{ Prueft ob das deutsche Tesseract-Sprachpaket fehlt }
+function GermanTessDataMissing: Boolean;
+begin
+  Result := not FileExists('C:\Program Files\Tesseract-OCR\tessdata\deu.traineddata');
+end;
+
+{ Nach der Installation: Warnung wenn Deutsch-OCR-Daten fehlen }
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssDone then begin
+    if GermanTessDataMissing then begin
+      MsgBox(
+        'Hinweis: Das deutsche Tesseract-Sprachpaket (deu.traineddata) wurde nicht' + #13#10 +
+        'gefunden. OCR auf deutschen Texten ist moeglicherweise nicht verfuegbar.' + #13#10 + #13#10 +
+        'Loesung: Laden Sie "deu.traineddata" von' + #13#10 +
+        'https://github.com/tesseract-ocr/tessdata_fast' + #13#10 +
+        'herunter und kopieren Sie die Datei nach:' + #13#10 +
+        'C:\Program Files\Tesseract-OCR\tessdata\',
+        mbInformation, MB_OK);
     end;
   end;
 end;
