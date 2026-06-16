@@ -23,6 +23,7 @@
 
 ; Tesseract-Installer (wird mitgeliefert)
 #define TesseractSetup  "tesseract-ocr-w64-setup.exe"
+#define TessInstallDir  "C:\Program Files\Tesseract-OCR"
 
 ; =============================================================================
 [Setup]
@@ -103,6 +104,12 @@ Source: "{#DistDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Tesseract Installer (temporaer in tmp-Ordner, wird nach Installation geloescht)
 Source: "{#DepDir}\{#TesseractSetup}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
+; Tesseract-Sprachdaten (Deutsch + Englisch) - werden mitgeliefert, da die stille
+; Komponentenauswahl des NSIS-basierten Tesseract-Installers unzuverlaessig ist.
+; Zwischenlagerung in {tmp}; Kopie nach Tesseract-Installation erfolgt in [Run].
+Source: "{#DepDir}\tessdata\deu.traineddata"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "{#DepDir}\tessdata\eng.traineddata"; DestDir: "{tmp}"; Flags: deleteafterinstall
+
 ; =============================================================================
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
@@ -113,10 +120,15 @@ Name: "{commonstartmenu}\Programme\{#AppName} Schnellstart"; Filename: "{app}\{#
 ; =============================================================================
 [Run]
 ; Tesseract installieren - nur wenn noch nicht vorhanden
-; /COMPONENTS aktiviert Deutsch + Englisch als Sprachpakete (benoetigt fuer deu+eng OCR)
-Filename: "{tmp}\{#TesseractSetup}"; Parameters: "/VERYSILENT /NORESTART /ALLUSERS /DIR=""C:\Program Files\Tesseract-OCR"" /COMPONENTS=""tesseract,Additional language data (download),Additional language data (download)\German,Additional language data (download)\English"""; StatusMsg: "{cm:TesseractInstalling}"; Check: TesseractNeeded; Flags: waituntilterminated
+Filename: "{tmp}\{#TesseractSetup}"; Parameters: "/VERYSILENT /NORESTART /ALLUSERS /DIR=""{#TessInstallDir}"""; StatusMsg: "{cm:TesseractInstalling}"; Check: TesseractNeeded; Flags: waituntilterminated
 
-; Sicherheitsnetz: Wenn Deutsch-Tessdata fehlt, Hinweis anzeigen
+; Sprachdaten (Deutsch + Englisch) selbst nach tessdata kopieren - laeuft NACH dem
+; Tesseract-Installer, damit unsere Dateien nicht von dessen Standardkomponenten
+; ueberschrieben/geloescht werden. Laeuft immer, auch wenn Tesseract schon vorhanden war.
+Filename: "{cmd}"; Parameters: "/C copy /Y ""{tmp}\deu.traineddata"" ""{#TessInstallDir}\tessdata\deu.traineddata"""; StatusMsg: "{cm:TesseractInstalling}"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C copy /Y ""{tmp}\eng.traineddata"" ""{#TessInstallDir}\tessdata\eng.traineddata"""; StatusMsg: "{cm:TesseractInstalling}"; Flags: runhidden waituntilterminated
+
+; Sicherheitsnetz: Wenn Deutsch-Tessdata trotzdem fehlt, Hinweis anzeigen
 Filename: "{app}\{#AppExeName}"; Parameters: ""; Check: GermanTessDataMissing; Flags: nowait skipifsilent
 
 ; Anwendung nach Installation starten (optional)
@@ -133,7 +145,7 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; F
 { Prueft ob Tesseract bereits installiert ist }
 function TesseractNeeded: Boolean;
 begin
-  Result := not FileExists('C:\Program Files\Tesseract-OCR\tesseract.exe');
+  Result := not FileExists('{#TessInstallDir}\tesseract.exe');
 end;
 
 { Schreibrechte-Pruefung }
@@ -199,21 +211,22 @@ end;
 { Prueft ob das deutsche Tesseract-Sprachpaket fehlt }
 function GermanTessDataMissing: Boolean;
 begin
-  Result := not FileExists('C:\Program Files\Tesseract-OCR\tessdata\deu.traineddata');
+  Result := not FileExists('{#TessInstallDir}\tessdata\deu.traineddata');
 end;
 
-{ Nach der Installation: Warnung wenn Deutsch-OCR-Daten fehlen }
+{ Nach der Installation: Warnung wenn Deutsch-OCR-Daten trotz eigener Kopie fehlen
+  (z.B. weil der Kopiervorgang durch Antivirus/Rechte blockiert wurde) }
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssDone then begin
     if GermanTessDataMissing then begin
       MsgBox(
-        'Hinweis: Das deutsche Tesseract-Sprachpaket (deu.traineddata) wurde nicht' + #13#10 +
-        'gefunden. OCR auf deutschen Texten ist moeglicherweise nicht verfuegbar.' + #13#10 + #13#10 +
+        'Hinweis: Das deutsche Tesseract-Sprachpaket (deu.traineddata) konnte nicht' + #13#10 +
+        'kopiert werden. OCR auf deutschen Texten ist moeglicherweise nicht verfuegbar.' + #13#10 + #13#10 +
         'Loesung: Laden Sie "deu.traineddata" von' + #13#10 +
         'https://github.com/tesseract-ocr/tessdata_fast' + #13#10 +
         'herunter und kopieren Sie die Datei nach:' + #13#10 +
-        'C:\Program Files\Tesseract-OCR\tessdata\',
+        '{#TessInstallDir}\tessdata\',
         mbInformation, MB_OK);
     end;
   end;
